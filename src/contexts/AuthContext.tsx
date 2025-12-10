@@ -1,142 +1,78 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { createContext, useContext, useEffect, useState } from 'react';
+import api from '../api/client';
+import type { Merchant } from '../types';
 
-interface Merchant {
-  id: string;
-  business_name: string;
-  owner_name: string;
-  email: string;
-  phone: string;
-  store_url_slug: string;
-  logo_url: string | null;
-  store_description: string | null;
-  primary_color: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  merchant: Merchant | null;
-  loading: boolean;
-  signUp: (email: string, password: string, merchantData: {
-    business_name: string;
-    owner_name: string;
+type AuthContextValue = {
+  user: Merchant | null;
+  token: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: {
+    email: string;
+    password: string;
+    businessName: string;
+    ownerName: string;
     phone: string;
-    store_url_slug: string;
-  }) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
-}
+    storeSlug: string;
+  }) => Promise<void>;
+  logout: () => void;
+  refresh: () => Promise<void>;
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [merchant, setMerchant] = useState<Merchant | null>(null);
-  const [loading, setLoading] = useState(true);
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<Merchant | null>(null);
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('seranet_token'));
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadMerchantData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadMerchantData(session.user.id);
-      } else {
-        setMerchant(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const loadMerchantData = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('merchants')
-      .select('id, business_name, owner_name, email, phone, store_url_slug, logo_url, store_description, primary_color')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (!error && data) {
-      setMerchant(data);
+    if (token) {
+      refresh().catch(() => logout());
     }
-    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const login = async (email: string, password: string) => {
+    const { data } = await api.post<{ token: string; merchant: Merchant }>('/auth/login', { email, password });
+    localStorage.setItem('seranet_token', data.token);
+    setToken(data.token);
+    setUser(data.merchant);
   };
 
-  const signUp = async (
-    email: string,
-    password: string,
-    merchantData: {
-      business_name: string;
-      owner_name: string;
-      phone: string;
-      store_url_slug: string;
-    }
-  ) => {
-    try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
-
-      const { error: merchantError } = await supabase
-        .from('merchants')
-        .insert({
-          id: authData.user.id,
-          email,
-          ...merchantData,
-          password_hash: '',
-        });
-
-      if (merchantError) throw merchantError;
-
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
+  const register = async (payload: {
+    email: string;
+    password: string;
+    businessName: string;
+    ownerName: string;
+    phone: string;
+    storeSlug: string;
+  }) => {
+    const { data } = await api.post<{ token: string; merchant: Merchant }>('/auth/register', payload);
+    localStorage.setItem('seranet_token', data.token);
+    setToken(data.token);
+    setUser(data.merchant);
   };
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
+  const refresh = async () => {
+    if (!token) return;
+    const { data } = await api.get<Merchant>('/auth/me');
+    setUser(data);
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setMerchant(null);
+  const logout = () => {
+    localStorage.removeItem('seranet_token');
+    setToken(null);
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, merchant, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+};
