@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { placeholderFetchMerchantBySlug, placeholderFetchProducts } from '../lib/apiPlaceholders';
+import { api } from '../lib/apiPlaceholders';
 import { Store, ShoppingCart, Package } from 'lucide-react';
 
 interface Merchant {
@@ -36,22 +36,24 @@ export function Storefront({ slug }: { slug: string }) {
   }, [slug]);
 
   const loadStorefront = async () => {
-    // TODO: Replace with GET /merchants from Express backend
-    const merchantData = await placeholderFetchMerchantBySlug(slug);
+    try {
+      const merchantData = await api.getMerchantBySlug(slug);
 
-    if (!merchantData) {
+      if (!merchantData) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      setMerchant(merchantData);
+
+      const productsData = await api.getProducts(merchantData.id);
+      setProducts(productsData);
+    } catch (error) {
+      console.error('Failed to load storefront', error);
       setNotFound(true);
-      setLoading(false);
-      return;
     }
 
-    setMerchant(merchantData);
-
-    // TODO: Replace with GET /products from Express backend
-    const productsData = await placeholderFetchProducts(merchantData.id);
-
-    setProducts(productsData);
-    
     setLoading(false);
   };
 

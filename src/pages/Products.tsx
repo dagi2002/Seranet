@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { placeholderDeleteProduct, placeholderFetchProducts } from '../lib/apiPlaceholders';
+import { api } from '../lib/apiPlaceholders';
 import { Plus, Edit2, Trash2, Search, Package } from 'lucide-react';
 import { ProductModal } from '../components/products/ProductModal';
 
@@ -45,12 +45,13 @@ export function Products() {
   const loadProducts = async () => {
     if (!merchant) return;
 
-     // TODO: Replace with GET /products from Express backend
-     const data = await placeholderFetchProducts(merchant.id);
-
-
-     setProducts(data);
-     setFilteredProducts(data);
+    try {
+      const data = await api.getProducts(merchant.id);
+      setProducts(data);
+      setFilteredProducts(data);
+    } catch (error) {
+      console.error('Failed to load products', error);
+    }
     setLoading(false);
   };
 
@@ -67,9 +68,13 @@ export function Products() {
   const handleDeleteProduct = async (productId: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
-    // TODO: Replace with DELETE /products from Express backend
-    await placeholderDeleteProduct(productId);
-    setProducts(products.filter((p) => p.id !== productId));
+    try {
+      await api.deleteProduct(productId);
+      setProducts(products.filter((p) => p.id !== productId));
+      setFilteredProducts((prev) => prev.filter((p) => p.id !== productId));
+    } catch (error) {
+      console.error('Failed to delete product', error);
+    }
   };
 
   const handleModalClose = (shouldRefresh?: boolean) => {

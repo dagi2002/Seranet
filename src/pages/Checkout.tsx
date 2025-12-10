@@ -1,10 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
-import {
-  placeholderCreateDemoPayment,
-  placeholderCreateOrder,
-  placeholderCreateOrderItems,
-  placeholderFetchMerchantBySlug,
-} from '../lib/apiPlaceholders';
+import { api } from '../lib/apiPlaceholders';
 import { Store, Package, Trash2, ShoppingCart } from 'lucide-react';
 
 interface Merchant {
@@ -41,11 +36,14 @@ export function Checkout({ slug }: { slug: string }) {
   }, [slug]);
 
   const loadMerchant = async () => {
-    // TODO: Replace with GET /merchants from Express backend
-    const data = await placeholderFetchMerchantBySlug(slug);
+    try {
+      const data = await api.getMerchantBySlug(slug);
 
-    if (data) {
-      setMerchant(data);
+      if (data) {
+        setMerchant(data);
+      }
+    } catch (error) {
+      console.error('Failed to load merchant', error);
     }
   };
 
@@ -90,8 +88,7 @@ export function Checkout({ slug }: { slug: string }) {
     amount: number,
     customerPhone: string
   ) => {
-    // TODO: Replace this demo payment simulation with real Telebirr initiate + callback handling
-    await placeholderCreateDemoPayment(orderId, amount, customerPhone);
+    await api.demoPayment(orderId, amount, customerPhone);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -112,36 +109,32 @@ export function Checkout({ slug }: { slug: string }) {
 
     const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    // TODO: Replace with POST /orders from Express backend
-    const orderData = await placeholderCreateOrder(merchant.id, {
-      customer_name: formData.customer_name,
-      customer_phone: formData.customer_phone,
-      customer_address: formData.customer_address || null,
-      total_amount: totalAmount,
-    });
-
-
-    const orderItems = cart.map((item) => ({
-      order_id: orderData.id,
-      product_id: item.id,
-      quantity: item.quantity,
-      price_at_purchase: item.price,
-    }));
-
-     // TODO: Replace with POST /orders from Express backend
-     await placeholderCreateOrderItems(orderData.id, orderItems);
-
     try {
-      await simulateDemoPayment(orderData.id, totalAmount, formData.customer_phone);    } catch (paymentError) {
-      console.error('Demo payment failed', paymentError);
-      setError('Failed to initiate payment. Please try again.');
-      setLoading(false);
-      return;
+      const orderData = await api.createOrder({
+        merchant_id: merchant.id,
+        customer_name: formData.customer_name,
+        customer_phone: formData.customer_phone,
+        customer_address: formData.customer_address || null,
+        total_amount: totalAmount,
+        items: cart.map((item) => ({
+          order_id: '',
+          product_id: item.id,
+          quantity: item.quantity,
+          price_at_purchase: item.price,
+        })),
+      });
+
+      await simulateDemoPayment(orderData.id, totalAmount, formData.customer_phone);
+
+      localStorage.removeItem(`cart_${slug}`);
+
+      window.location.href = `/checkout-success?order=${orderData.id}`;
+    } catch (paymentError) {
+      console.error('Checkout failed', paymentError);
+      setError('Failed to complete checkout. Please try again.');
     }
 
-    localStorage.removeItem(`cart_${slug}`);
-
-    window.location.href = `/checkout-success?order=${orderData.id}`;
+    setLoading(false);
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);

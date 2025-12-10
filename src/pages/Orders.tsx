@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { placeholderFetchOrders } from '../lib/apiPlaceholders';
+import { api } from '../lib/apiPlaceholders';
 import { ShoppingCart, Eye } from 'lucide-react';
 import { OrderDetailsModal } from '../components/orders/OrderDetailsModal';
 
@@ -40,11 +40,13 @@ export function Orders() {
   const loadOrders = async () => {
     if (!merchant) return;
 
-    // TODO: Replace with GET /orders from Express backend
-    const data = await placeholderFetchOrders(merchant.id);
-
-    setOrders(data);
-    setFilteredOrders(data);
+    try {
+      const data = await api.getOrders(merchant.id);
+      setOrders(data);
+      setFilteredOrders(data);
+    } catch (error) {
+      console.error('Failed to load orders', error);
+    }
     setLoading(false);
   };
 
