@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../lib/apiPlaceholders';
+import { api } from '../../lib/api';
 import { X, Upload } from 'lucide-react';
 
 interface Product {

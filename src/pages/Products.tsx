@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../lib/apiPlaceholders';
+import { api } from '../lib/api';
 import { Plus, Edit2, Trash2, Search, Package } from 'lucide-react';
 import { ProductModal } from '../components/products/ProductModal';
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../lib/apiPlaceholders';
+import { api } from '../lib/api';
 import { Package, ShoppingCart, DollarSign, TrendingUp } from 'lucide-react';
 
 interface Stats {

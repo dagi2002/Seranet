@@ -1,7 +1,7 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../lib/apiPlaceholders';
+import { api } from '../lib/api';
 import { Save, ExternalLink, Upload } from 'lucide-react';
 
 export function StoreSettings() {
