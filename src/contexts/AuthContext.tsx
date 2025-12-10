@@ -1,13 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import {
-  PlaceholderMerchant as Merchant,
-  PlaceholderUser as User,
-  clearPlaceholderSession,
-  loadPlaceholderSession,
-  placeholderFetchMerchantById,
-  placeholderLogin,
-  placeholderRegister,
-} from '../lib/apiPlaceholders';
+import { api, clearStoredSession, loadStoredSession } from '../lib/apiPlaceholders';
+import type { Merchant, User } from '../lib/types';
 
 interface AuthContextType {
   user: User | null;
@@ -31,22 +24,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const existingSession = loadPlaceholderSession();
-    if (existingSession?.user) {
+    const existingSession = loadStoredSession();
+    if (existingSession.user) {
       setUser(existingSession.user);
-      loadMerchantData(existingSession.user.id);
-    } else {
-      setLoading(false);
     }
-  }, []);
-
-  const loadMerchantData = async (userId: string) => {
-    const data = await placeholderFetchMerchantById(userId);
-    if (data) {
-      setMerchant(data);
+    if (existingSession.merchant) {
+      setMerchant(existingSession.merchant);
     }
     setLoading(false);
-  };
+  }, []);
 
   const signUp = async (
     email: string,
@@ -59,12 +45,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   ) => {
     try {
-      // TODO: Replace with POST /auth/register from Express backend
-      const { user: newUser, merchant: newMerchant } = await placeholderRegister(
-        merchantData
+      const { user: newUser, merchant: newMerchant } = await api.register(
+        email,
+        password
       );
-      setUser(newUser);
-      setMerchant(newMerchant);
+
+      if (newUser) {
+        setUser(newUser);
+      }
+
+      let merchantRecord = newMerchant ?? null;
+
+      if (!merchantRecord && merchantData.business_name) {
+        merchantRecord = await api.createMerchant(merchantData.business_name);
+      }
+
+      if (merchantRecord) {
+        const updatedMerchant = await api.updateMerchant(merchantRecord.id, {
+          ...merchantRecord,
+          ...merchantData,
+        });
+        setMerchant(updatedMerchant);
+      }
 
       return { error: null };
     } catch (error) {
@@ -74,10 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // TODO: Replace with POST /auth/login from Express backend
-      const session = await placeholderLogin(email, password);
-      setUser(session.user);
-      setMerchant(session.merchant);
+      const session = await api.login(email, password);
+      const stored = loadStoredSession();
+
+      setUser(session.user ?? stored.user ?? null);
+      setMerchant(session.merchant ?? stored.merchant ?? null);
 
       return { error: null };
     } catch (error) {
@@ -86,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    clearPlaceholderSession();    
-      setMerchant(null);
+    clearStoredSession();
+    setMerchant(null);
     setUser(null);
   };
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { placeholderFetchMerchantBySlug, placeholderFetchProductById } from '../lib/apiPlaceholders';
+import { api } from '../lib/apiPlaceholders';
 import { Store, ShoppingCart, Package, Minus, Plus, ArrowLeft } from 'lucide-react';
 
 interface Merchant {
@@ -34,27 +34,31 @@ export function ProductDetail({ slug, productId }: { slug: string; productId: st
   }, [slug, productId]);
 
   const loadProductDetail = async () => {
-    // TODO: Replace with GET /merchants from Express backend
-    const merchantData = await placeholderFetchMerchantBySlug(slug);
+    try {
+      const merchantData = await api.getMerchantBySlug(slug);
 
-    if (!merchantData) {
+      if (!merchantData) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      setMerchant(merchantData);
+
+      const productData = await api.getProductById(productId);
+
+      if (!productData || productData.merchant_id !== merchantData.id) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      setProduct(productData);
+    } catch (error) {
+      console.error('Failed to load product detail', error);
       setNotFound(true);
-      setLoading(false);
-      return;
     }
 
-    setMerchant(merchantData);
-
-    // TODO: Replace with GET /products from Express backend
-    const productData = await placeholderFetchProductById(productId, merchantData.id);
-
-    if (!productData) {      
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
-
-    setProduct(productData);
     setLoading(false);
   };
 

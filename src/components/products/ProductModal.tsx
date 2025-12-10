@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { placeholderUpsertProduct } from '../../lib/apiPlaceholders';
+import { api } from '../../lib/apiPlaceholders';
 import { X, Upload } from 'lucide-react';
 
 interface Product {
@@ -77,30 +77,21 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
       is_active: formData.is_active,
     };
 
-    if (product) {
-      // TODO: Replace with PUT /products from Express backend
-      const { error: updateError } = await placeholderUpsertProduct({
-        ...productData,
-        id: product.id,
-      });
-
-      if (updateError) {
-        setError(updateError.message);
-        setLoading(false);
-        return;
+    try {
+      if (product) {
+        await api.createProduct({
+          ...productData,
+          id: product.id,
+        });
+      } else {
+        await api.createProduct(productData);
       }
-    } else {
-      // TODO: Replace with POST /products from Express backend
-      const { error: insertError } = await placeholderUpsertProduct(productData);
 
-      if (insertError) {
-        setError(insertError.message);
-        setLoading(false);
-        return;
-      }
+      onClose(true);
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
     }
-
-    onClose(true);
   };
 
   return (

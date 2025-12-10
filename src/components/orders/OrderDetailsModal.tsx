@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { placeholderFetchOrderDetails, placeholderUpdateOrderStatus } from '../../lib/apiPlaceholders';
+import { api } from '../../lib/apiPlaceholders';
 import { X, Package, Phone, MapPin, CreditCard } from 'lucide-react';
 
 interface Order {
@@ -44,11 +44,10 @@ export function OrderDetailsModal({ order, onClose, onUpdate }: OrderDetailsModa
   }, [order.id]);
 
   const loadOrderDetails = async () => {
-    // TODO: Replace with GET /orders from Express backend
-    const orderDetails = await placeholderFetchOrderDetails(order.id);
+    const orderDetails = await api.getOrder(order.id);
 
     if (orderDetails) {
-      setOrderItems(orderDetails.items as OrderItem[]);
+      setOrderItems((orderDetails.items as OrderItem[]) ?? []);
       if (orderDetails.payment) {
         setPayment(orderDetails.payment);
       }
@@ -58,8 +57,7 @@ export function OrderDetailsModal({ order, onClose, onUpdate }: OrderDetailsModa
   };
 
   const updateOrderStatus = async (newStatus: Order['order_status']) => {
-    // TODO: Replace with PUT /orders from Express backend
-    await placeholderUpdateOrderStatus(order.id, newStatus);
+    await api.updateOrderStatus(order.id, newStatus);
     onUpdate();
     onClose();
   };
