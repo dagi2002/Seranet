@@ -1,7 +1,6 @@
 # Seranet - Ethiopian E-commerce Platform
 
-A Shopify-like multi-merchant e-commerce platform built specifically for Ethiopia, featuring Telebirr payment integration.
-
+A Shopify-like multi-merchant e-commerce platform built specifically for Ethiopia, featuring Telebirr payment integration (currently in **DEMO MODE**).
 ## Features
 
 ### For Merchants
@@ -48,6 +47,14 @@ Create a `.env` file in the project root:
 VITE_SUPABASE_URL=your-supabase-project-url
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+Server-side (Edge Function) environment variables required for payment callbacks and service-role access:
+
+```env
+SUPABASE_URL=your-supabase-project-url
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+TELEBIRR_DEMO_SECRET=your-shared-secret-for-demo-callbacks
+```
+
 
 ### 2. Database Setup
 
@@ -123,10 +130,8 @@ Customers can:
 - Proceed to checkout
 - Complete payment via Telebirr
 
-## Telebirr Payment Integration
-
-The MVP includes a Telebirr edge function at `/functions/telebirr-payment` with two endpoints:
-
+## Telebirr Payment Integration (Demo Mode)
+The MVP includes a Telebirr edge function at `/functions/telebirr-payment` operating in DEMO MODE. No real Telebirr calls are made.
 ### `/initiate`
 Initiates a payment request
 ```json
@@ -138,8 +143,7 @@ POST /functions/v1/telebirr-payment/initiate
 ```
 
 ### `/callback`
-Receives payment confirmation from Telebirr
-```json
+Receives simulated payment confirmation (requires `x-demo-secret` matching `TELEBIRR_DEMO_SECRET`)```json
 POST /functions/v1/telebirr-payment/callback
 {
   "outTradeNo": "order-id",
@@ -227,7 +231,7 @@ This is an MVP implementation. For production use, consider:
 
 ## License
 
-MIT
+Dagi
 
 ## Support
 

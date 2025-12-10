@@ -84,6 +84,49 @@ export function Checkout({ slug }: { slug: string }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const simulateDemoPayment = async (
+    orderId: string,
+    merchantId: string,
+    amount: number,
+    customerPhone: string
+  ) => {
+    // TODO: Replace this demo payment simulation with real Telebirr initiate + callback handling
+    const { error: paymentError } = await supabase.from('payments_telebirr').insert({
+      order_id: orderId,
+      merchant_id: merchantId,
+      amount,
+      customer_phone: customerPhone,
+      status: 'pending',
+    });
+
+    if (paymentError) {
+      throw paymentError;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const { error: paymentUpdateError } = await supabase
+      .from('payments_telebirr')
+      .update({
+        status: 'success',
+        callback_payload: { demo: true, message: 'Demo payment auto-approved' },
+      })
+      .eq('order_id', orderId);
+
+    if (paymentUpdateError) {
+      throw paymentUpdateError;
+    }
+
+    const { error: orderUpdateError } = await supabase
+      .from('orders')
+      .update({ order_status: 'paid' })
+      .eq('id', orderId);
+
+    if (orderUpdateError) {
+      throw orderUpdateError;
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -138,17 +181,10 @@ export function Checkout({ slug }: { slug: string }) {
       return;
     }
 
-    const { error: paymentError } = await supabase
-      .from('payments_telebirr')
-      .insert({
-        order_id: orderData.id,
-        merchant_id: merchant.id,
-        amount: totalAmount,
-        customer_phone: formData.customer_phone,
-        status: 'initiated',
-      });
-
-    if (paymentError) {
+    try {
+      await simulateDemoPayment(orderData.id, merchant.id, totalAmount, formData.customer_phone);
+    } catch (paymentError) {
+      console.error('Demo payment failed', paymentError);
       setError('Failed to initiate payment. Please try again.');
       setLoading(false);
       return;

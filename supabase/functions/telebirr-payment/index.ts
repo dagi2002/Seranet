@@ -24,14 +24,41 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase service credentials for telebirr-payment function');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: missing Supabase credentials' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     if (req.method === 'POST' && req.url.includes('/callback')) {
+      const demoSecret = Deno.env.get('TELEBIRR_DEMO_SECRET');
+      const receivedSecret = req.headers.get('x-demo-secret');
+
+      // TODO: Replace shared-secret check with real Telebirr signature verification
+      if (!demoSecret || receivedSecret !== demoSecret) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized callback' }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+
       const payload: PaymentCallbackPayload = await req.json();
 
-      console.log('Received Telebirr callback:', payload);
+      console.log('Received demo Telebirr callback:', payload);
 
       const { data: payment } = await supabase
         .from('payments_telebirr')
@@ -48,7 +75,7 @@ Deno.serve(async (req: Request) => {
           }
         );
       }
-
+      // DEMO_MODE: trust payload amount; TODO replace with Telebirr amount validation
       const expectedAmount = parseFloat(payment.amount);
       const receivedAmount = parseFloat(payload.totalAmount);
 
@@ -69,7 +96,7 @@ Deno.serve(async (req: Request) => {
         .from('payments_telebirr')
         .update({
           status: newStatus,
-          telebirr_txn_id: payload.transactionId,
+          telebirr_txn_id: payload.transactionId ?? 'demo-transaction',
           callback_payload: payload,
         })
         .eq('id', payment.id);
@@ -82,8 +109,7 @@ Deno.serve(async (req: Request) => {
       }
 
       return new Response(
-        JSON.stringify({ success: true, message: 'Payment processed' }),
-        {
+        JSON.stringify({ success: true, message: 'Demo payment processed' }),        {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
@@ -108,13 +134,14 @@ Deno.serve(async (req: Request) => {
           }
         );
       }
-
+ // DEMO_MODE: Pretend to initiate a Telebirr payment without hitting external APIs
+      // TODO: Replace with real Telebirr initiate call and proper response handling
       console.log('Simulating Telebirr STK Push for:', { orderId, customerPhone, amount: payment.amount });
 
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Payment initiated. Customer will receive STK push.',
+          message: 'Demo payment initiated. Customer will receive simulated prompt.',
           orderId: payment.order_id,
         }),
         {
@@ -134,7 +161,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error processing payment:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: (error as Error).message }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

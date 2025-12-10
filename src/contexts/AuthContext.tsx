@@ -96,7 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: authData.user.id,
           email,
           ...merchantData,
-          password_hash: '',
+           // Placeholder to satisfy non-null constraint; Supabase Auth manages real passwords
+           password_hash: 'managed-by-supabase-auth',
         });
 
       if (merchantError) throw merchantError;
