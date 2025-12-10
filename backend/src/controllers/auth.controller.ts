@@ -7,8 +7,8 @@ export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
-      const token = await service.register(email, password);
-      res.status(201).json({ token });
+      const result = await service.register(email, password);
+      res.status(201).json(result);
     } catch (error) {
       next(error);
     }
@@ -17,8 +17,8 @@ export class AuthController {
   async login(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
-      const token = await service.login(email, password);
-      res.json({ token });
+      const result = await service.login(email, password);
+      res.json(result);
     } catch (error) {
       next(error);
     }

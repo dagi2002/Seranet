@@ -1,7 +1,7 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { placeholderUpdateMerchant } from '../lib/apiPlaceholders';
+import { api } from '../lib/apiPlaceholders';
 import { Save, ExternalLink, Upload } from 'lucide-react';
 
 export function StoreSettings() {
@@ -45,21 +45,20 @@ export function StoreSettings() {
     }
 
     
-    // TODO: Replace with PUT /merchants from Express backend
-    const { error: updateError } = await placeholderUpdateMerchant(merchant.id, {
-      business_name: formData.business_name,
-      store_description: formData.store_description,
-      logo_url: formData.logo_url || null,
-      primary_color: formData.primary_color,
-    });
+    try {
+      await api.updateMerchant(merchant.id, {
+        business_name: formData.business_name,
+        store_description: formData.store_description,
+        logo_url: formData.logo_url || null,
+        primary_color: formData.primary_color,
+      });
 
-    if (updateError) {
-      setError(updateError.message);
-    } else {
       setSuccess(true);
       setTimeout(() => {
         window.location.reload();
       }, 1000);
+    } catch (updateError) {
+      setError((updateError as Error).message);
     }
 
     setLoading(false);

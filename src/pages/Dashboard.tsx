@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { placeholderFetchOrders, placeholderFetchProducts } from '../lib/apiPlaceholders';
+import { api } from '../lib/apiPlaceholders';
 import { Package, ShoppingCart, DollarSign, TrendingUp } from 'lucide-react';
 
 interface Stats {
@@ -39,31 +39,33 @@ export function Dashboard() {
   const loadDashboardData = async () => {
     if (!merchant) return;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    // TODO: Replace with GET /orders from Express backend
-    const ordersData = await placeholderFetchOrders(merchant.id);
-    // TODO: Replace with GET /products from Express backend
-    const productsData = await placeholderFetchProducts(merchant.id);
+      const ordersData = await api.getOrders(merchant.id);
+      const productsData = await api.getProducts(merchant.id);
 
-    const todaySales = ordersData
-      .filter((o) => new Date(o.created_at) >= today && o.order_status === 'paid')
-      .reduce((sum, o) => sum + Number(o.total_amount), 0);
+      const todaySales = ordersData
+        .filter((o) => new Date(o.created_at) >= today && o.order_status === 'paid')
+        .reduce((sum, o) => sum + Number(o.total_amount), 0);
 
-    const pendingCount = ordersData.filter((o) => o.order_status === 'pending').length;
-    const sortedOrders = [...ordersData].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+      const pendingCount = ordersData.filter((o) => o.order_status === 'pending').length;
+      const sortedOrders = [...ordersData].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
 
-    setStats({
-      todaySales,
-      totalOrders: ordersData.length,
-      activeProducts: productsData.length,
-      pendingOrders: pendingCount,
-    });
+      setStats({
+        todaySales,
+        totalOrders: ordersData.length,
+        activeProducts: productsData.length,
+        pendingOrders: pendingCount,
+      });
 
-    setRecentOrders(sortedOrders.slice(0, 5));
+      setRecentOrders(sortedOrders.slice(0, 5));
+    } catch (error) {
+      console.error('Failed to load dashboard data', error);
+    }
 
     setLoading(false);
   };

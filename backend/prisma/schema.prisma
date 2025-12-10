@@ -8,58 +8,77 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String     @id @default(uuid())
+  email      String     @unique
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  merchants  Merchant[]
 }
 
 model Merchant {
-  id        Int      @id @default(autoincrement())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  products  Product[]
-  orders    Order[]
+  id                String    @id @default(uuid())
+  user              User      @relation(fields: [user_id], references: [id])
+  user_id           String
+  password_hash     String
+  business_name     String
+  owner_name        String?
+  phone             String?
+  store_url_slug    String    @unique
+  logo_url          String?
+  store_description String?
+  primary_color     String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  products          Product[]
+  orders            Order[]
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  price       Float
-  merchant    Merchant @relation(fields: [merchantId], references: [id])
-  merchantId  Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orderItems  OrderItem[]
+  id             String    @id @default(uuid())
+  merchant       Merchant  @relation(fields: [merchant_id], references: [id])
+  merchant_id    String
+  name           String
+  description    String?
+  price          Int
+  stock_quantity Int       @default(0)
+  image_url      String?
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  orderItems     OrderItem[]
 }
 
 model Order {
-  id          Int      @id @default(autoincrement())
-  merchant    Merchant @relation(fields: [merchantId], references: [id])
-  merchantId  Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orderItems  OrderItem[]
-  payments    Payment[]
+  id               String       @id @default(uuid())
+  merchant         Merchant     @relation(fields: [merchant_id], references: [id])
+  merchant_id      String
+  customer_name    String
+  customer_phone   String
+  customer_address String?
+  order_status     String       @default("pending")
+  total_amount     Int
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+  items            OrderItem[]
+  payment          Payment?
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
-  order     Order   @relation(fields: [orderId], references: [id])
-  orderId   Int
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-  quantity  Int
+  id                String   @id @default(uuid())
+  order             Order    @relation(fields: [order_id], references: [id])
+  order_id          String
+  product           Product  @relation(fields: [product_id], references: [id])
+  product_id        String
+  quantity          Int
+  price_at_purchase Int
 }
 
 model Payment {
-  id        Int      @id @default(autoincrement())
-  order     Order    @relation(fields: [orderId], references: [id])
-  orderId   Int
-  amount    Float
-  status    String
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  order          Order    @relation(fields: [order_id], references: [id])
+  order_id       String   @unique
+  telebirr_txn_id String?
+  status         String
+  amount         Int
+  created_at     DateTime @default(now())
 }

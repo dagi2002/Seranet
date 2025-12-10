@@ -1,338 +1,253 @@
-export interface PlaceholderUser {
-    id: string;
-    email: string;
+import type { Merchant, Order, OrderItem, Product, User, PaymentResponse } from './types';
+
+const API_BASE_URL = 'http://localhost:4000';
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
+const MERCHANT_KEY = 'merchant';
+
+function getToken() {
+  if (typeof localStorage === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function saveToken(token: string) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function saveUser(user: User | null) {
+  if (typeof localStorage === 'undefined') return;
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(USER_KEY);
   }
-  
-  export interface PlaceholderMerchant {
-    id: string;
-    business_name: string;
-    owner_name: string;
-    email: string;
-    phone: string;
-    store_url_slug: string;
-    logo_url: string | null;
-    store_description: string | null;
-    primary_color: string;
+}
+
+function saveMerchant(merchant: Merchant | null) {
+  if (typeof localStorage === 'undefined') return;
+  if (merchant) {
+    localStorage.setItem(MERCHANT_KEY, JSON.stringify(merchant));
+  } else {
+    localStorage.removeItem(MERCHANT_KEY);
   }
-  
-  export interface PlaceholderProduct {
-    id: string;
-    merchant_id: string;
-    name: string;
-    description: string;
-    price: number;
-    stock_quantity: number;
-    image_url: string | null;
-    is_active: boolean;
-  }
-  
-  export interface PlaceholderOrderItem {
-    id: string;
-    order_id: string;
-    product_id: string;
-    quantity: number;
-    price_at_purchase: number;
-    product: {
-      name: string;
-      image_url: string | null;
-    };
-  }
-  
-  export interface PlaceholderOrder {
-    id: string;
-    merchant_id: string;
-    customer_name: string;
-    customer_phone: string;
-    customer_address: string | null;
-    order_status: 'pending' | 'paid' | 'cancelled' | 'fulfilled';
-    total_amount: number;
-    created_at: string;
-    items: PlaceholderOrderItem[];
-    payment?: {
-      telebirr_txn_id: string | null;
-      status: string;
-      created_at: string;
-    };
-  }
-  
-  const demoMerchant: PlaceholderMerchant = {
-    id: 'demo-merchant',
-    business_name: 'Demo Store',
-    owner_name: 'Demo Owner',
-    email: 'merchant@example.com',
-    phone: '0912345678',
-    store_url_slug: 'demo-store',
-    logo_url: null,
-    store_description: 'This is a demo storefront. Replace with live data from your Express backend.',
-    primary_color: '#2563eb',
-  };
-  
-  let demoProducts: PlaceholderProduct[] = [
-    {
-      id: 'product-1',
-      merchant_id: demoMerchant.id,
-      name: 'Demo Hoodie',
-      description: 'A cozy hoodie to showcase your storefront UI.',
-      price: 1200,
-      stock_quantity: 8,
-      image_url: null,
-      is_active: true,
-    },
-    {
-      id: 'product-2',
-      merchant_id: demoMerchant.id,
-      name: 'Demo Sneakers',
-      description: 'Comfortable sneakers for everyday wear.',
-      price: 1800,
-      stock_quantity: 5,
-      image_url: null,
-      is_active: true,
-    },
-  ];
-  
-  let demoOrders: PlaceholderOrder[] = [
-    {
-      id: 'order-1',
-      merchant_id: demoMerchant.id,
-      customer_name: 'Alemu Bekele',
-      customer_phone: '0911001100',
-      customer_address: 'Addis Ababa',
-      order_status: 'paid',
-      total_amount: 1800,
-      created_at: new Date().toISOString(),
-      items: [
-        {
-          id: 'order-item-1',
-          order_id: 'order-1',
-          product_id: 'product-2',
-          quantity: 1,
-          price_at_purchase: 1800,
-          product: {
-            name: 'Demo Sneakers',
-            image_url: null,
-          },
-        },
-      ],
-      payment: {
-        telebirr_txn_id: 'TB-DEMO-001',
-        status: 'success',
-        created_at: new Date().toISOString(),
-      },
-    },
-  ];
-  
-  const sessionKey = 'seranet_placeholder_session';
-  
-  type SessionPayload = {
-    user: PlaceholderUser;
-    merchant: PlaceholderMerchant;
-  };
-  
-  function saveSession(session: SessionPayload) {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(sessionKey, JSON.stringify(session));
-  }
-  
-  function loadSession(): SessionPayload | null {
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(sessionKey);
-    return raw ? (JSON.parse(raw) as SessionPayload) : null;
-  }
-  
-  export function loadPlaceholderSession() {
-    return loadSession();
-  }
-  
-  export function clearPlaceholderSession() {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.removeItem(sessionKey);
-  }
-  
-  export async function placeholderRegister(
-    email: string,
-    _password: string,
-    merchantData: Pick<PlaceholderMerchant, 'business_name' | 'owner_name' | 'phone' | 'store_url_slug'>
-  ): Promise<{ user: PlaceholderUser; merchant: PlaceholderMerchant }> {
-    // TODO: Replace with POST /auth/register from Express backend
-    const user: PlaceholderUser = {
-      id: `user-${Date.now()}`,
-      email,
-    };
-  
-    const merchant: PlaceholderMerchant = {
-      ...demoMerchant,
-      ...merchantData,
-      email,
-      id: user.id,
-    };
-  
-    saveSession({ user, merchant });
-    return { user, merchant };
-  }
-  
-  export async function placeholderLogin(email: string, _password: string): Promise<SessionPayload> {
-    // TODO: Replace with POST /auth/login from Express backend
-    const existing = loadSession();
-    if (existing) {
-      return existing;
-    }
-  
-    const user: PlaceholderUser = { id: demoMerchant.id, email };
-    const merchant = { ...demoMerchant, email };
-    const session = { user, merchant };
-    saveSession(session);
-    return session;
-  }
-  
-  export async function placeholderFetchMerchantById(userId: string) {
-    // TODO: Replace with GET /merchants from Express backend
-    const session = loadSession();
-    if (session?.merchant.id === userId) {
-      return session.merchant;
-    }
-    return { ...demoMerchant, id: userId };
-  }
-  
-  export async function placeholderFetchMerchantBySlug(slug: string) {
-    // TODO: Replace with GET /merchants from Express backend
-    const session = loadSession();
-    if (session?.merchant.store_url_slug === slug) {
-      return session.merchant;
-    }
-    if (slug === demoMerchant.store_url_slug) {
-      return demoMerchant;
-    }
-    return null;
-  }
-  
-  export async function placeholderUpdateMerchant(
-    merchantId: string,
-    updates: Partial<Pick<PlaceholderMerchant, 'business_name' | 'store_description' | 'logo_url' | 'primary_color'>>
-  ) {
-    // TODO: Replace with PUT /merchants from Express backend
-    if (loadSession()?.merchant.id === merchantId) {
-      const current = loadSession();
-      if (current) {
-        const updated = { ...current.merchant, ...updates };
-        saveSession({ ...current, merchant: updated });
-        return { merchant: updated, error: null } as const;
+}
+
+function authHeaders() {
+  const token = getToken();
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
       }
-    }
-  
-    demoMerchant.business_name = updates.business_name ?? demoMerchant.business_name;
-    demoMerchant.store_description = updates.store_description ?? demoMerchant.store_description;
-    demoMerchant.logo_url = updates.logo_url ?? demoMerchant.logo_url;
-    demoMerchant.primary_color = updates.primary_color ?? demoMerchant.primary_color;
-    return { merchant: demoMerchant, error: null } as const;
+    : {};
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  const data = (await response.json().catch(() => ({}))) as T & { message?: string };
+  if (!response.ok) {
+    const message = (data as { message?: string }).message ?? 'Request failed';
+    throw new Error(message);
   }
-  
-  export async function placeholderFetchProducts(merchantId: string) {
-    // TODO: Replace with GET /products from Express backend
-    return demoProducts.filter((product) => product.merchant_id === merchantId && product.is_active);
+  return data as T;
+}
+
+export function loadStoredSession() {
+  if (typeof localStorage === 'undefined') {
+    return { token: null, user: null, merchant: null } as const;
   }
-  
-  export async function placeholderFetchProductById(productId: string, merchantId: string) {
-    // TODO: Replace with GET /products from Express backend
-    return demoProducts.find((product) => product.id === productId && product.merchant_id === merchantId && product.is_active) || null;
-  }
-  
-  export async function placeholderUpsertProduct(
-    product: Omit<PlaceholderProduct, 'id'> & { id?: string }
-  ): Promise<{ product: PlaceholderProduct; error: Error | null }> {
-    // TODO: Replace with POST/PUT /products from Express backend
-    if (product.id) {
-      const index = demoProducts.findIndex((p) => p.id === product.id);
-      if (index !== -1) {
-        demoProducts[index] = { ...demoProducts[index], ...product, id: product.id };
-        return { product: demoProducts[index], error: null };
-      }
-    }
-  
-    const newProduct: PlaceholderProduct = {
-      ...product,
-      id: product.id ?? `product-${Date.now()}`,
-    };
-    demoProducts = [newProduct, ...demoProducts];
-    return { product: newProduct, error: null };
-  }
-  
-  export async function placeholderDeleteProduct(productId: string) {
-    // TODO: Replace with DELETE /products from Express backend
-    demoProducts = demoProducts.filter((product) => product.id !== productId);
-  }
-  
-  export async function placeholderFetchOrders(merchantId: string) {
-    // TODO: Replace with GET /orders from Express backend
-    return demoOrders
-      .filter((order) => order.merchant_id === merchantId)
-      .map((order) => ({ ...order, items: order.items.map((item) => ({ ...item })) }));
-  }
-  
-  export async function placeholderFetchOrderDetails(orderId: string) {
-    // TODO: Replace with GET /orders from Express backend
-    return demoOrders.find((order) => order.id === orderId) ?? null;
-  }
-  
-  export async function placeholderUpdateOrderStatus(orderId: string, newStatus: PlaceholderOrder['order_status']) {
-    // TODO: Replace with PUT /orders from Express backend
-    const order = demoOrders.find((o) => o.id === orderId);
-    if (order) {
-      order.order_status = newStatus;
-    }
-  }
-  
-  export async function placeholderCreateOrder(
-    merchantId: string,
-    payload: Pick<PlaceholderOrder, 'customer_name' | 'customer_phone' | 'customer_address' | 'total_amount'>
-  ) {
-    // TODO: Replace with POST /orders from Express backend
-    const orderId = `order-${Date.now()}`;
-    const newOrder: PlaceholderOrder = {
-      id: orderId,
-      merchant_id: merchantId,
-      customer_name: payload.customer_name,
-      customer_phone: payload.customer_phone,
-      customer_address: payload.customer_address,
-      order_status: 'pending',
-      total_amount: payload.total_amount,
-      created_at: new Date().toISOString(),
-      items: [],
-    };
-    demoOrders = [newOrder, ...demoOrders];
-    return newOrder;
-  }
-  
-  export async function placeholderCreateOrderItems(orderId: string, items: Omit<PlaceholderOrderItem, 'id' | 'product'>[]) {
-    // TODO: Replace with POST /orders from Express backend
-    const order = demoOrders.find((o) => o.id === orderId);
-    if (!order) return;
-  
-    const expanded = items.map((item) => {
-      const product = demoProducts.find((p) => p.id === item.product_id);
-      return {
-        ...item,
-        id: `order-item-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
-        product: {
-          name: product?.name ?? 'Unknown product',
-          image_url: product?.image_url ?? null,
-        },
-      } satisfies PlaceholderOrderItem;
+  const token = localStorage.getItem(TOKEN_KEY);
+  const userRaw = localStorage.getItem(USER_KEY);
+  const merchantRaw = localStorage.getItem(MERCHANT_KEY);
+
+  return {
+    token,
+    user: userRaw ? (JSON.parse(userRaw) as User) : null,
+    merchant: merchantRaw ? (JSON.parse(merchantRaw) as Merchant) : null,
+  } as const;
+}
+
+export function clearStoredSession() {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(MERCHANT_KEY);
+}
+
+export const api = {
+  async login(email: string, password: string) {
+    console.log('Logging in user via backend…');
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
-  
-    order.items = expanded;
-  }
-  
-  export async function placeholderCreateDemoPayment(orderId: string, amount: number, customerPhone: string) {
-    // TODO: Replace with POST /payments/demo from Express backend
-    const order = demoOrders.find((o) => o.id === orderId);
-    if (!order) return;
-  
-    order.payment = {
-      telebirr_txn_id: `TB-${Date.now()}`,
-      status: 'success',
-      created_at: new Date().toISOString(),
-    };
-    order.order_status = 'paid';
-  
-    return { order, amount, customerPhone };
-  }
+
+    const data = await handleResponse<{ token: string; user?: User; merchant?: Merchant }>(response);
+
+    if (data.token) {
+      saveToken(data.token);
+    }
+    if (data.user) {
+      saveUser(data.user);
+    }
+    if (data.merchant) {
+      saveMerchant(data.merchant);
+    }
+
+    return data;
+  },
+
+  async register(email: string, password: string) {
+    console.log('Registering user via backend…');
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await handleResponse<{ token: string; user?: User; merchant?: Merchant }>(response);
+
+    if (data.token) {
+      saveToken(data.token);
+    }
+    if (data.user) {
+      saveUser(data.user);
+    }
+    if (data.merchant) {
+      saveMerchant(data.merchant);
+    }
+
+    return data;
+  },
+
+  async getMerchants() {
+    console.log('Fetching merchants…');
+    const response = await fetch(`${API_BASE_URL}/merchants`, {
+      headers: { ...authHeaders() },
+    });
+    return handleResponse<Merchant[]>(response);
+  },
+
+  async createMerchant(name: string) {
+    console.log('Creating merchant…');
+    const response = await fetch(`${API_BASE_URL}/merchants`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ name }),
+    });
+    const data = await handleResponse<Merchant>(response);
+    saveMerchant(data);
+    return data;
+  },
+
+  async updateMerchant(id: string, updates: Partial<Merchant>) {
+    console.log('Updating merchant…');
+    const response = await fetch(`${API_BASE_URL}/merchants/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(updates),
+    });
+    const data = await handleResponse<Merchant>(response);
+    saveMerchant(data);
+    return data;
+  },
+
+  async getProducts(merchantId?: string) {
+    console.log('Fetching products…');
+    const query = merchantId ? `?merchantId=${merchantId}` : '';
+    const response = await fetch(`${API_BASE_URL}/products${query}`, {
+      headers: { ...authHeaders() },
+    });
+    return handleResponse<Product[]>(response);
+  },
+
+  async getProductById(productId: string) {
+    console.log('Fetching product by id…');
+    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+      headers: { ...authHeaders() },
+    });
+    return handleResponse<Product>(response);
+  },
+
+  async createProduct(product: Partial<Product>) {
+    console.log('Creating or updating product…');
+    const { id, ...rest } = product;
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_BASE_URL}/products/${id}` : `${API_BASE_URL}/products`;
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(rest),
+    });
+    return handleResponse<Product>(response);
+  },
+
+  async deleteProduct(productId: string) {
+    console.log('Deleting product…');
+    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders() },
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error((data as { message?: string }).message ?? 'Failed to delete product');
+    }
+  },
+
+  async getOrders(merchantId?: string) {
+    console.log('Fetching orders…');
+    const query = merchantId ? `?merchantId=${merchantId}` : '';
+    const response = await fetch(`${API_BASE_URL}/orders${query}`, {
+      headers: { ...authHeaders() },
+    });
+    return handleResponse<Order[]>(response);
+  },
+
+  async getOrder(orderId: string) {
+    console.log('Fetching order details…');
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+      headers: { ...authHeaders() },
+    });
+    return handleResponse<Order>(response);
+  },
+
+  async createOrder(payload: Partial<Order> & { items?: Partial<OrderItem>[] }) {
+    console.log('Creating order…');
+    const response = await fetch(`${API_BASE_URL}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<Order>(response);
+  },
+
+  async updateOrderStatus(orderId: string, newStatus: Order['order_status']) {
+    console.log('Updating order status…');
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ order_status: newStatus }),
+    });
+    return handleResponse<Order>(response);
+  },
+
+  async demoPayment(orderId: string, amount: number, customerPhone?: string) {
+    console.log('Creating demo payment…');
+    const response = await fetch(`${API_BASE_URL}/payments/demo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ orderId, amount, customerPhone }),
+    });
+    return handleResponse<PaymentResponse>(response);
+  },
+
+  async getMerchantBySlug(slug: string) {
+    console.log('Fetching merchant by slug…');
+    const response = await fetch(`${API_BASE_URL}/merchants?slug=${slug}`, {
+      headers: { ...authHeaders() },
+    });
+    const merchants = await handleResponse<Merchant[]>(response);
+    return merchants.find((merchant) => merchant.store_url_slug === slug) ?? null;
+  },
+};
