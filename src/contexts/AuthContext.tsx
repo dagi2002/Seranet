@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { api, clearStoredSession, loadStoredSession } from '../lib/apiPlaceholders';
+import { api, clearStoredSession, loadStoredSession } from '../lib/api';
 import type { Merchant, User } from '../lib/types';
 
 interface AuthContextType {

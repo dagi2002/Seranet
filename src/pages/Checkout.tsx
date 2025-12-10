@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { api } from '../lib/apiPlaceholders';
+import { api } from '../lib/api';
 import { Store, Package, Trash2, ShoppingCart } from 'lucide-react';
 
 interface Merchant {
