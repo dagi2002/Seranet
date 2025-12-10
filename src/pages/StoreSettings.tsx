@@ -1,7 +1,7 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { placeholderUpdateMerchant } from '../lib/apiPlaceholders';
 import { Save, ExternalLink, Upload } from 'lucide-react';
 
 export function StoreSettings() {
@@ -44,15 +44,14 @@ export function StoreSettings() {
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from('merchants')
-      .update({
-        business_name: formData.business_name,
-        store_description: formData.store_description,
-        logo_url: formData.logo_url || null,
-        primary_color: formData.primary_color,
-      })
-      .eq('id', merchant.id);
+    
+    // TODO: Replace with PUT /merchants from Express backend
+    const { error: updateError } = await placeholderUpdateMerchant(merchant.id, {
+      business_name: formData.business_name,
+      store_description: formData.store_description,
+      logo_url: formData.logo_url || null,
+      primary_color: formData.primary_color,
+    });
 
     if (updateError) {
       setError(updateError.message);

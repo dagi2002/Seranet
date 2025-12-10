@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { placeholderFetchOrders, placeholderFetchProducts } from '../lib/apiPlaceholders';
 import { Package, ShoppingCart, DollarSign, TrendingUp } from 'lucide-react';
 
 interface Stats {
@@ -42,42 +42,28 @@ export function Dashboard() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [ordersRes, productsRes, recentOrdersRes] = await Promise.all([
-      supabase
-        .from('orders')
-        .select('total_amount, created_at, order_status')
-        .eq('merchant_id', merchant.id),
-      supabase
-        .from('products')
-        .select('id')
-        .eq('merchant_id', merchant.id)
-        .eq('is_active', true),
-      supabase
-        .from('orders')
-        .select('id, order_status, total_amount, created_at, customer_name')
-        .eq('merchant_id', merchant.id)
-        .order('created_at', { ascending: false })
-        .limit(5),
-    ]);
+    // TODO: Replace with GET /orders from Express backend
+    const ordersData = await placeholderFetchOrders(merchant.id);
+    // TODO: Replace with GET /products from Express backend
+    const productsData = await placeholderFetchProducts(merchant.id);
 
-    if (ordersRes.data) {
-      const todaySales = ordersRes.data
-        .filter((o) => new Date(o.created_at) >= today && o.order_status === 'paid')
-        .reduce((sum, o) => sum + Number(o.total_amount), 0);
+    const todaySales = ordersData
+      .filter((o) => new Date(o.created_at) >= today && o.order_status === 'paid')
+      .reduce((sum, o) => sum + Number(o.total_amount), 0);
 
-      const pendingCount = ordersRes.data.filter((o) => o.order_status === 'pending').length;
+    const pendingCount = ordersData.filter((o) => o.order_status === 'pending').length;
+    const sortedOrders = [...ordersData].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
-      setStats({
-        todaySales,
-        totalOrders: ordersRes.data.length,
-        activeProducts: productsRes.data?.length || 0,
-        pendingOrders: pendingCount,
-      });
-    }
+    setStats({
+      todaySales,
+      totalOrders: ordersData.length,
+      activeProducts: productsData.length,
+      pendingOrders: pendingCount,
+    });
 
-    if (recentOrdersRes.data) {
-      setRecentOrders(recentOrdersRes.data);
-    }
+    setRecentOrders(sortedOrders.slice(0, 5));
 
     setLoading(false);
   };

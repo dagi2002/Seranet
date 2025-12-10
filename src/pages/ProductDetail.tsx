@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { placeholderFetchMerchantBySlug, placeholderFetchProductById } from '../lib/apiPlaceholders';
 import { Store, ShoppingCart, Package, Minus, Plus, ArrowLeft } from 'lucide-react';
 
 interface Merchant {
@@ -34,14 +34,10 @@ export function ProductDetail({ slug, productId }: { slug: string; productId: st
   }, [slug, productId]);
 
   const loadProductDetail = async () => {
-    const { data: merchantData, error: merchantError } = await supabase
-      .from('merchants')
-      .select('id, business_name, logo_url, primary_color')
-      .eq('store_url_slug', slug)
-      .eq('is_active', true)
-      .maybeSingle();
+    // TODO: Replace with GET /merchants from Express backend
+    const merchantData = await placeholderFetchMerchantBySlug(slug);
 
-    if (merchantError || !merchantData) {
+    if (!merchantData) {
       setNotFound(true);
       setLoading(false);
       return;
@@ -49,15 +45,10 @@ export function ProductDetail({ slug, productId }: { slug: string; productId: st
 
     setMerchant(merchantData);
 
-    const { data: productData, error: productError } = await supabase
-      .from('products')
-      .select('id, name, description, price, stock_quantity, image_url')
-      .eq('id', productId)
-      .eq('merchant_id', merchantData.id)
-      .eq('is_active', true)
-      .maybeSingle();
+    // TODO: Replace with GET /products from Express backend
+    const productData = await placeholderFetchProductById(productId, merchantData.id);
 
-    if (productError || !productData) {
+    if (!productData) {      
       setNotFound(true);
       setLoading(false);
       return;

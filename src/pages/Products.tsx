@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { placeholderDeleteProduct, placeholderFetchProducts } from '../lib/apiPlaceholders';
 import { Plus, Edit2, Trash2, Search, Package } from 'lucide-react';
 import { ProductModal } from '../components/products/ProductModal';
 
@@ -45,16 +45,12 @@ export function Products() {
   const loadProducts = async () => {
     if (!merchant) return;
 
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('merchant_id', merchant.id)
-      .order('created_at', { ascending: false });
+     // TODO: Replace with GET /products from Express backend
+     const data = await placeholderFetchProducts(merchant.id);
 
-    if (!error && data) {
-      setProducts(data);
-      setFilteredProducts(data);
-    }
+
+     setProducts(data);
+     setFilteredProducts(data);
     setLoading(false);
   };
 
@@ -71,14 +67,9 @@ export function Products() {
   const handleDeleteProduct = async (productId: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', productId);
-
-    if (!error) {
-      setProducts(products.filter((p) => p.id !== productId));
-    }
+    // TODO: Replace with DELETE /products from Express backend
+    await placeholderDeleteProduct(productId);
+    setProducts(products.filter((p) => p.id !== productId));
   };
 
   const handleModalClose = (shouldRefresh?: boolean) => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { placeholderFetchOrders } from '../lib/apiPlaceholders';
 import { ShoppingCart, Eye } from 'lucide-react';
 import { OrderDetailsModal } from '../components/orders/OrderDetailsModal';
 
@@ -40,16 +40,11 @@ export function Orders() {
   const loadOrders = async () => {
     if (!merchant) return;
 
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('merchant_id', merchant.id)
-      .order('created_at', { ascending: false });
+    // TODO: Replace with GET /orders from Express backend
+    const data = await placeholderFetchOrders(merchant.id);
 
-    if (!error && data) {
-      setOrders(data);
-      setFilteredOrders(data);
-    }
+    setOrders(data);
+    setFilteredOrders(data);
     setLoading(false);
   };
 

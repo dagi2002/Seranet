@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { placeholderUpsertProduct } from '../../lib/apiPlaceholders';
 import { X, Upload } from 'lucide-react';
 
 interface Product {
@@ -78,10 +78,11 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
     };
 
     if (product) {
-      const { error: updateError } = await supabase
-        .from('products')
-        .update(productData)
-        .eq('id', product.id);
+      // TODO: Replace with PUT /products from Express backend
+      const { error: updateError } = await placeholderUpsertProduct({
+        ...productData,
+        id: product.id,
+      });
 
       if (updateError) {
         setError(updateError.message);
@@ -89,9 +90,8 @@ export function ProductModal({ product, onClose }: ProductModalProps) {
         return;
       }
     } else {
-      const { error: insertError } = await supabase
-        .from('products')
-        .insert(productData);
+      // TODO: Replace with POST /products from Express backend
+      const { error: insertError } = await placeholderUpsertProduct(productData);
 
       if (insertError) {
         setError(insertError.message);

@@ -1,18 +1,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-
-interface Merchant {
-  id: string;
-  business_name: string;
-  owner_name: string;
-  email: string;
-  phone: string;
-  store_url_slug: string;
-  logo_url: string | null;
-  store_description: string | null;
-  primary_color: string;
-}
+import {
+  PlaceholderMerchant as Merchant,
+  PlaceholderUser as User,
+  clearPlaceholderSession,
+  loadPlaceholderSession,
+  placeholderFetchMerchantById,
+  placeholderLogin,
+  placeholderRegister,
+} from '../lib/apiPlaceholders';
 
 interface AuthContextType {
   user: User | null;
@@ -36,36 +31,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadMerchantData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadMerchantData(session.user.id);
-      } else {
-        setMerchant(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    const existingSession = loadPlaceholderSession();
+    if (existingSession?.user) {
+      setUser(existingSession.user);
+      loadMerchantData(existingSession.user.id);
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const loadMerchantData = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('merchants')
-      .select('id, business_name, owner_name, email, phone, store_url_slug, logo_url, store_description, primary_color')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (!error && data) {
+    const data = await placeholderFetchMerchantById(userId);
+    if (data) {
       setMerchant(data);
     }
     setLoading(false);
@@ -82,25 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   ) => {
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
-
-      const { error: merchantError } = await supabase
-        .from('merchants')
-        .insert({
-          id: authData.user.id,
-          email,
-          ...merchantData,
-           // Placeholder to satisfy non-null constraint; Supabase Auth manages real passwords
-           password_hash: 'managed-by-supabase-auth',
-        });
-
-      if (merchantError) throw merchantError;
+      // TODO: Replace with POST /auth/register from Express backend
+      const { user: newUser, merchant: newMerchant } = await placeholderRegister(
+        merchantData
+      );
+      setUser(newUser);
+      setMerchant(newMerchant);
 
       return { error: null };
     } catch (error) {
@@ -110,12 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // TODO: Replace with POST /auth/login from Express backend
+      const session = await placeholderLogin(email, password);
+      setUser(session.user);
+      setMerchant(session.merchant);
 
-      if (error) throw error;
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -123,8 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setMerchant(null);
+    clearPlaceholderSession();    
+      setMerchant(null);
+    setUser(null);
   };
 
   return (

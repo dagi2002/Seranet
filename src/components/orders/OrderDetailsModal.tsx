@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { placeholderFetchOrderDetails, placeholderUpdateOrderStatus } from '../../lib/apiPlaceholders';
 import { X, Package, Phone, MapPin, CreditCard } from 'lucide-react';
 
 interface Order {
@@ -44,39 +44,24 @@ export function OrderDetailsModal({ order, onClose, onUpdate }: OrderDetailsModa
   }, [order.id]);
 
   const loadOrderDetails = async () => {
-    const [itemsRes, paymentRes] = await Promise.all([
-      supabase
-        .from('order_items')
-        .select('id, quantity, price_at_purchase, product:products(name, image_url)')
-        .eq('order_id', order.id),
-      supabase
-        .from('payments_telebirr')
-        .select('telebirr_txn_id, status, created_at')
-        .eq('order_id', order.id)
-        .maybeSingle(),
-    ]);
+    // TODO: Replace with GET /orders from Express backend
+    const orderDetails = await placeholderFetchOrderDetails(order.id);
 
-    if (itemsRes.data) {
-      setOrderItems(itemsRes.data as unknown as OrderItem[]);
-    }
-
-    if (paymentRes.data) {
-      setPayment(paymentRes.data);
+    if (orderDetails) {
+      setOrderItems(orderDetails.items as OrderItem[]);
+      if (orderDetails.payment) {
+        setPayment(orderDetails.payment);
+      }
     }
 
     setLoading(false);
   };
 
   const updateOrderStatus = async (newStatus: Order['order_status']) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ order_status: newStatus })
-      .eq('id', order.id);
-
-    if (!error) {
-      onUpdate();
-      onClose();
-    }
+    // TODO: Replace with PUT /orders from Express backend
+    await placeholderUpdateOrderStatus(order.id, newStatus);
+    onUpdate();
+    onClose();
   };
 
   const getStatusColor = (status: string) => {

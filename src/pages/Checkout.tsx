@@ -1,5 +1,10 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { supabase } from '../lib/supabase';
+import {
+  placeholderCreateDemoPayment,
+  placeholderCreateOrder,
+  placeholderCreateOrderItems,
+  placeholderFetchMerchantBySlug,
+} from '../lib/apiPlaceholders';
 import { Store, Package, Trash2, ShoppingCart } from 'lucide-react';
 
 interface Merchant {
@@ -36,12 +41,8 @@ export function Checkout({ slug }: { slug: string }) {
   }, [slug]);
 
   const loadMerchant = async () => {
-    const { data } = await supabase
-      .from('merchants')
-      .select('id, business_name, logo_url, primary_color')
-      .eq('store_url_slug', slug)
-      .eq('is_active', true)
-      .maybeSingle();
+    // TODO: Replace with GET /merchants from Express backend
+    const data = await placeholderFetchMerchantBySlug(slug);
 
     if (data) {
       setMerchant(data);
@@ -86,45 +87,11 @@ export function Checkout({ slug }: { slug: string }) {
 
   const simulateDemoPayment = async (
     orderId: string,
-    merchantId: string,
     amount: number,
     customerPhone: string
   ) => {
     // TODO: Replace this demo payment simulation with real Telebirr initiate + callback handling
-    const { error: paymentError } = await supabase.from('payments_telebirr').insert({
-      order_id: orderId,
-      merchant_id: merchantId,
-      amount,
-      customer_phone: customerPhone,
-      status: 'pending',
-    });
-
-    if (paymentError) {
-      throw paymentError;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    const { error: paymentUpdateError } = await supabase
-      .from('payments_telebirr')
-      .update({
-        status: 'success',
-        callback_payload: { demo: true, message: 'Demo payment auto-approved' },
-      })
-      .eq('order_id', orderId);
-
-    if (paymentUpdateError) {
-      throw paymentUpdateError;
-    }
-
-    const { error: orderUpdateError } = await supabase
-      .from('orders')
-      .update({ order_status: 'paid' })
-      .eq('id', orderId);
-
-    if (orderUpdateError) {
-      throw orderUpdateError;
-    }
+    await placeholderCreateDemoPayment(orderId, amount, customerPhone);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -145,24 +112,14 @@ export function Checkout({ slug }: { slug: string }) {
 
     const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        merchant_id: merchant.id,
-        customer_name: formData.customer_name,
-        customer_phone: formData.customer_phone,
-        customer_address: formData.customer_address || null,
-        order_status: 'pending',
-        total_amount: totalAmount,
-      })
-      .select()
-      .single();
+    // TODO: Replace with POST /orders from Express backend
+    const orderData = await placeholderCreateOrder(merchant.id, {
+      customer_name: formData.customer_name,
+      customer_phone: formData.customer_phone,
+      customer_address: formData.customer_address || null,
+      total_amount: totalAmount,
+    });
 
-    if (orderError || !orderData) {
-      setError('Failed to create order. Please try again.');
-      setLoading(false);
-      return;
-    }
 
     const orderItems = cart.map((item) => ({
       order_id: orderData.id,
@@ -171,19 +128,11 @@ export function Checkout({ slug }: { slug: string }) {
       price_at_purchase: item.price,
     }));
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
-
-    if (itemsError) {
-      setError('Failed to save order items. Please contact support.');
-      setLoading(false);
-      return;
-    }
+     // TODO: Replace with POST /orders from Express backend
+     await placeholderCreateOrderItems(orderData.id, orderItems);
 
     try {
-      await simulateDemoPayment(orderData.id, merchant.id, totalAmount, formData.customer_phone);
-    } catch (paymentError) {
+      await simulateDemoPayment(orderData.id, totalAmount, formData.customer_phone);    } catch (paymentError) {
       console.error('Demo payment failed', paymentError);
       setError('Failed to initiate payment. Please try again.');
       setLoading(false);
