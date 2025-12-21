@@ -1,0 +1,36 @@
+{
+    "name": "Payment",
+    "type": "object",
+    "properties": {
+      "order_id": {
+        "type": "string",
+        "description": "Reference to order"
+      },
+      "merchant_id": {
+        "type": "string",
+        "description": "Reference to merchant"
+      },
+      "telebirr_txn_id": {
+        "type": "string",
+        "description": "Telebirr transaction ID"
+      },
+      "amount": {
+        "type": "number",
+        "description": "Payment amount in ETB"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["initiated", "pending", "success", "failed"],
+        "default": "initiated"
+      },
+      "customer_phone": {
+        "type": "string"
+      },
+      "callback_payload": {
+        "type": "string",
+        "description": "Raw callback JSON from Telebirr"
+      }
+    },
+    "required": ["order_id", "amount"]
+  }
+  

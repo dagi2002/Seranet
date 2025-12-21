@@ -1,0 +1,42 @@
+{
+    "name": "Product",
+    "type": "object",
+    "properties": {
+      "merchant_id": {
+        "type": "string",
+        "description": "Reference to merchant"
+      },
+      "name": {
+        "type": "string",
+        "description": "Product name"
+      },
+      "description": {
+        "type": "string",
+        "description": "Product description"
+      },
+      "price": {
+        "type": "number",
+        "description": "Price in ETB"
+      },
+      "stock_quantity": {
+        "type": "number",
+        "default": 0,
+        "description": "Available stock"
+      },
+      "image_url": {
+        "type": "string",
+        "description": "Product image URL"
+      },
+      "category": {
+        "type": "string",
+        "enum": ["clothing", "electronics", "food", "home", "beauty", "sports", "other"],
+        "default": "other"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true
+      }
+    },
+    "required": ["merchant_id", "name", "price"]
+  }
+  

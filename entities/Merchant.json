@@ -1,0 +1,45 @@
+{
+    "name": "Merchant",
+    "type": "object",
+    "properties": {
+      "business_name": {
+        "type": "string",
+        "description": "Store/business name"
+      },
+      "owner_name": {
+        "type": "string",
+        "description": "Owner's full name"
+      },
+      "phone": {
+        "type": "string",
+        "description": "Phone number for Telebirr"
+      },
+      "store_url_slug": {
+        "type": "string",
+        "description": "Unique URL slug for the store"
+      },
+      "logo_url": {
+        "type": "string",
+        "description": "Store logo image URL"
+      },
+      "banner_url": {
+        "type": "string",
+        "description": "Store banner image URL"
+      },
+      "description": {
+        "type": "string",
+        "description": "Store description"
+      },
+      "primary_color": {
+        "type": "string",
+        "default": "#0D9488",
+        "description": "Primary brand color"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true
+      }
+    },
+    "required": ["business_name", "store_url_slug"]
+  }
+  

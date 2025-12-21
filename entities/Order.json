@@ -1,0 +1,48 @@
+{
+    "name": "Order",
+    "type": "object",
+    "properties": {
+      "merchant_id": {
+        "type": "string",
+        "description": "Reference to merchant"
+      },
+      "order_number": {
+        "type": "string",
+        "description": "Human-readable order number"
+      },
+      "customer_name": {
+        "type": "string"
+      },
+      "customer_phone": {
+        "type": "string",
+        "description": "Telebirr phone number"
+      },
+      "customer_address": {
+        "type": "string"
+      },
+      "items": {
+        "type": "array",
+        "description": "Order line items",
+        "items": {
+          "type": "object",
+          "properties": {
+            "product_id": { "type": "string" },
+            "product_name": { "type": "string" },
+            "quantity": { "type": "number" },
+            "price_at_purchase": { "type": "number" }
+          }
+        }
+      },
+      "total_amount": {
+        "type": "number",
+        "description": "Total in ETB"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["pending", "paid", "cancelled", "fulfilled"],
+        "default": "pending"
+      }
+    },
+    "required": ["merchant_id", "customer_name", "customer_phone", "total_amount"]
+  }
+  
