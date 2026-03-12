@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -24,5 +24,17 @@ app.use('/payments', paymentRoutes);
 app.use('/upload', uploadRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+const errorHandler: ErrorRequestHandler = (error, _req, res, next) => {
+  void next;
+  if (error.message === 'Only image uploads are allowed') {
+    res.status(400).json({ message: error.message });
+    return;
+  }
+
+  res.status(500).json({ message: 'Internal server error' });
+};
+
+app.use(errorHandler);
 
 export default app;

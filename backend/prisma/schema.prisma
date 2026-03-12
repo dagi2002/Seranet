@@ -15,7 +15,7 @@ model Merchant {
   ownerName    String
   phone        String
   storeSlug    String   @unique
-  logoUrl      String?  @db.Text
+  logoUrl      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   products     Product[]
@@ -28,10 +28,10 @@ model Product {
   merchant    Merchant @relation(fields: [merchantId], references: [id])
   merchantId  String
   name        String
-  description String?  @db.Text
+  description String?
   price       Float
   stock       Int
-  imageUrl    String?  @db.Text
+  imageUrl    String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -71,6 +71,6 @@ model Payment {
   merchantId String
   status     String
   amount     Float
-  payload    Json
+  payload    String
   createdAt  DateTime @default(now())
 }

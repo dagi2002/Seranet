@@ -13,7 +13,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'seranet-secret') as { userId: string };
     req.userId = decoded.userId;
     return next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
