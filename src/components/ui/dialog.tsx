@@ -20,7 +20,7 @@ const DialogContent = ({ className, children, ...props }: DialogPrimitive.Dialog
     <DialogOverlay />
     <DialogPrimitive.Content
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl',
+        'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-[0_30px_90px_-42px_rgba(15,23,42,0.42)] backdrop-blur-xl',
         className,
       )}
       {...props}

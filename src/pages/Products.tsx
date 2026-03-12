@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit3, PackageSearch, PlusCircle, Trash2 } from 'lucide-react';
+import { Edit3, PackageSearch, PlusCircle, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/api/apiClient';
 import { EmptyState } from '@/components/shared/empty-state';
@@ -27,6 +27,8 @@ export default function ProductsPage() {
     () => products.filter((product) => product.name.toLowerCase().includes(searchQuery.toLowerCase())),
     [products, searchQuery],
   );
+  const activeProducts = products.filter((product) => product.is_active).length;
+  const lowStockCount = products.filter((product) => product.stock_quantity > 0 && product.stock_quantity <= 5).length;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.entities.Product.remove(id),
@@ -58,8 +60,18 @@ export default function ProductsPage() {
         }
       />
 
-      <Card className="p-4">
-        <Input placeholder="Search products by name" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
+      <Card className="p-4 sm:p-5">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input className="pl-10" placeholder="Search products by name" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricPill label="Catalog items" value={String(products.length)} />
+            <MetricPill label="Visible" value={String(activeProducts)} />
+            <MetricPill label="Low stock" value={String(lowStockCount)} />
+          </div>
+        </div>
       </Card>
 
       {isLoading ? (
@@ -71,13 +83,15 @@ export default function ProductsPage() {
       ) : filteredProducts.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {filteredProducts.map((product) => (
-            <Card key={product.id} className="group overflow-hidden">
+            <Card key={product.id} className="group overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_72px_-38px_rgba(15,23,42,0.34)]">
               <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
                 {product.image_url ? (
                   <img className="h-full w-full object-cover transition duration-300 group-hover:scale-105" src={product.image_url} alt={product.name} />
-                ) : null}
+                ) : <div className="h-full w-full bg-gradient-to-br from-slate-100 via-white to-brand-50" />}
                 {product.stock_quantity === 0 ? <div className="absolute inset-0 grid place-items-center bg-slate-950/50 text-sm font-semibold text-white">Out of Stock</div> : null}
-                <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition group-hover:opacity-100">
+                <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+                  <Badge variant={product.is_active ? 'success' : 'outline'} className="bg-white/90 text-slate-700 backdrop-blur-md">{product.is_active ? 'Active' : 'Hidden'}</Badge>
+                  <div className="flex gap-2 opacity-0 transition group-hover:opacity-100">
                   <button
                     className="rounded-full bg-white p-2 text-slate-700 shadow-sm"
                     onClick={() => {
@@ -98,20 +112,22 @@ export default function ProductsPage() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+                </div>
               </div>
               <div className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-slate-900">{product.name}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{product.description?.slice(0, 58) || 'No description yet.'}</p>
+                    <h3 className="text-lg font-semibold text-slate-900">{product.name}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">{product.description?.slice(0, 76) || 'No description yet.'}</p>
                   </div>
-                  <Badge variant={product.is_active ? 'success' : 'outline'}>{product.is_active ? 'Active' : 'Hidden'}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xl font-bold text-slate-900">{formatCurrency(product.price)}</p>
                   <Badge variant="outline">{product.category}</Badge>
                 </div>
-                <p className="text-sm text-slate-500">Stock: {product.stock_quantity}</p>
+                <div className="flex items-center justify-between rounded-[1.25rem] bg-slate-50 px-4 py-3">
+                  <p className="text-xl font-bold text-slate-900">{formatCurrency(product.price)}</p>
+                  <span className={`text-sm font-medium ${product.stock_quantity <= 5 ? 'text-amber-700' : 'text-slate-500'}`}>
+                    Stock: {product.stock_quantity}
+                  </span>
+                </div>
               </div>
             </Card>
           ))}
@@ -127,6 +143,15 @@ export default function ProductsPage() {
       )}
 
       <ProductForm merchantId={merchant.id} open={showForm} onOpenChange={setShowForm} product={editingProduct} />
+    </div>
+  );
+}
+
+function MetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1.25rem] bg-slate-50 px-4 py-3 text-center sm:text-left">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-bold text-slate-900">{value}</p>
     </div>
   );
 }
