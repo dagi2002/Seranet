@@ -1,50 +1,109 @@
-# Seranet v2 — Clean Architecture Edition
+# 🛍️ Seranet
 
-This rebuild removes Supabase and uses a traditional stack:
+<p align="center">
+  A modern, full-stack e-commerce platform featuring a public storefront and a comprehensive merchant dashboard.
+</p>
 
-- **Backend:** Node.js + Express, Prisma ORM, SQLite for local dev (PostgreSQL ready)
-- **Frontend:** React + Vite + React Router
-- **Auth:** JWT with bcrypt password hashing
-- **Payments:** Demo Telebirr simulation (pending → success after 3s)
-- **Uploads:** Local disk via Multer
+## ✨ Features
 
-## Structure
-- `frontend` code lives at the repo root in `src/`.
-- `backend/` contains the Express API and Prisma schema.
+- **Storefront:** Beautiful, responsive shopping experience for customers to browse and purchase products.
+- **Merchant Dashboard:** Full-featured control panel for managing inventory, tracking orders, and configuring store settings.
+- **Secure Authentication:** Robust JWT-based authentication with bcrypt password hashing.
+- **Robust Database:** Powered by Prisma ORM with SQLite for local development (easily scalable to PostgreSQL).
+- **Payment Integration:** Built-in demo payment gateway (Telebirr simulation) for seamless checkout testing.
+- **Media Handling:** Local disk image uploads powered by Multer.
 
-## Backend setup
-1. `cd backend`
-2. Copy `.env.example` to `.env` and set:
-   - `DATABASE_URL="file:./dev.db"` (default SQLite path)
-   - `JWT_SECRET=your-jwt-secret`
-3. Install deps and generate Prisma client:
+## 🛠 Tech Stack
+
+- **Frontend:** React, Vite, Tailwind CSS, TypeScript, React Router, React Query
+- **Backend:** Node.js, Express, Prisma, JWT, Multer
+- **Database:** SQLite (Development) / PostgreSQL (Production ready)
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+
+### 1. Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+3. Update `.env` with your settings (defaults are fine for local development):
+   ```env
+   DATABASE_URL="file:./dev.db"
+   JWT_SECRET="your-super-secret-jwt-key"
+   ```
+4. Install dependencies and initialize the database:
    ```bash
    npm install
    npx prisma generate
    npx prisma migrate dev --name init
    ```
-4. Start the API:
+5. Start the API server:
    ```bash
    npm run dev
    ```
-   The server listens on `http://localhost:4000`.
+   > The backend server will be running at `http://localhost:4000`.
 
-### Demo Telebirr
-`POST /payments/demo/initiate` sets payment status to `pending`, then automatically marks the payment and order `success/paid` after 3 seconds. No real Telebirr calls are made.
+### 2. Frontend Setup
 
-## Frontend setup
-1. From the repo root: `npm install`
-2. Create `.env` with `VITE_API_URL=http://localhost:4000`
-3. Run the dev server with `npm run dev`
+1. Open a new terminal and stay in the repository root.
+2. Install frontend dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the root directory:
+   ```env
+   VITE_API_URL="http://localhost:4000"
+   ```
+4. Start the frontend development server:
+   ```bash
+   npm run dev
+   ```
+   > The application will automatically open in your default browser.
 
-## Available API routes
-- **Auth:** `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
-- **Merchant:** `GET /merchant/:id`, `GET /merchant/slug/:slug`, `PUT /merchant/:id`
-- **Products:** `POST /products`, `GET /products?merchant=:id`, `GET /products/:id`, `PUT /products/:id`, `DELETE /products/:id`
-- **Orders:** `POST /orders`, `GET /orders?merchant=:id`, `GET /orders/:id`, `PUT /orders/:id/status`
-- **Payments (demo):** `POST /payments/demo/initiate`, `POST /payments/demo/confirm`
-- **Uploads:** `POST /upload/image`
+## 🔌 API Documentation
 
-## Notes
-- JWT protects merchant endpoints; public storefront endpoints are open.
-- Payments are demo-only. TODO markers can replace logic when integrating real Telebirr or another provider.
+### Authentication
+- `POST /auth/register` - Create a new merchant account
+- `POST /auth/login` - Authenticate merchant
+- `GET /auth/me` - Get current merchant profile
+
+### Merchant & Store
+- `GET /merchant/:id` - Get merchant details
+- `GET /merchant/slug/:slug` - Get merchant by store slug
+- `PUT /merchant/:id` - Update store settings (Protected)
+
+### Products
+- `POST /products` - Create new product (Protected)
+- `GET /products?merchant=:id` - List products for a store
+- `GET /products/:id` - Get single product details
+- `PUT /products/:id` - Update product (Protected)
+- `DELETE /products/:id` - Delete product (Protected)
+
+### Orders & Payments
+- `POST /orders` - Create a new order
+- `GET /orders?merchant=:id` - List store orders (Protected)
+- `GET /orders/:id` - Get order details
+- `PUT /orders/:id/status` - Update order status (Protected)
+- `POST /payments/demo/initiate` - Start demo payment
+- `POST /payments/demo/confirm` - Confirm demo payment
+
+### Media
+- `POST /upload/image` - Upload product/store images (Protected)
+
+## 📝 Notes
+
+- **Security:** All merchant endpoints are protected via JWT. Storefront endpoints remain public for customer access.
+- **Payments (Demo):** `POST /payments/demo/initiate` sets payment status to `pending`, then automatically marks the payment and order as `success/paid` after 3 seconds. No real Telebirr calls are made out-of-the-box. TODO markers are included for integrating real providers.
+
+---
+<p align="center">Built with ❤️ for modern commerce.</p>
