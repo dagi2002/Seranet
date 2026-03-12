@@ -1,6 +1,6 @@
 import { initialDatabase } from '@/services/seed-data';
 import { readStorage, STORAGE_KEYS, writeStorage } from '@/services/storage';
-import type { Database, EntityMap, Merchant } from '@/types/seranet';
+import type { Database, EntityMap, Merchant, Order } from '@/types/seranet';
 import { DEFAULT_PRIMARY_COLOR, generateId } from '@/utils';
 
 const collectionMap = {
@@ -39,6 +39,15 @@ function matchRecord<T extends object>(record: T, filters: Partial<T>) {
 
 function sortByCreatedDate<T extends { created_date?: string }>(items: T[]) {
   return [...items].sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
+}
+
+function applyOrderInventory(db: Database, order: Order) {
+  order.items.forEach((item) => {
+    const product = db.products.find((entry) => entry.id === item.product_id);
+    if (!product) return;
+    product.stock_quantity = Math.max(0, product.stock_quantity - item.quantity);
+    product.updated_date = new Date().toISOString();
+  });
 }
 
 export function getCurrentMerchantFromDb(userEmail: string): Merchant | null {
@@ -107,13 +116,24 @@ export const mockDb = {
       }
     }
 
-    collection[index] = {
+    const currentRecord = collection[index];
+    const nextRecord = {
       ...collection[index],
       ...data,
       updated_date: new Date().toISOString(),
     };
+    collection[index] = nextRecord;
+
+    if (entity === 'Order') {
+      const previousOrder = currentRecord as unknown as Order;
+      const updatedOrder = nextRecord as unknown as Order;
+      if (previousOrder.status !== 'paid' && updatedOrder.status === 'paid') {
+        applyOrderInventory(db, updatedOrder);
+      }
+    }
+
     writeDb(db);
-    return collection[index];
+    return nextRecord;
   },
 
   remove<K extends keyof EntityMap>(entity: K, id: string) {

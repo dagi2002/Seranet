@@ -19,6 +19,12 @@ function readCart(slug: string) {
   return readStorage<CartItem[]>(cartStorageKey(slug), []);
 }
 
+function clampCartQuantity(quantity: number, stockQuantity?: number) {
+  const normalized = clampQuantity(quantity);
+  if (typeof stockQuantity !== 'number') return normalized;
+  return Math.min(normalized, Math.max(1, stockQuantity));
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [, setVersion] = useState(0);
   const bump = () => setVersion((value) => value + 1);
@@ -30,11 +36,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       },
       addItem(slug, product, quantity = 1) {
         const cart = readCart(slug);
-        const nextQuantity = clampQuantity(quantity);
+        const nextQuantity = clampCartQuantity(quantity, product.stock_quantity);
         const existing = cart.find((item) => item.id === product.id);
         const next = existing
           ? cart.map((item) =>
-              item.id === product.id ? { ...item, quantity: item.quantity + nextQuantity } : item,
+              item.id === product.id
+                ? { ...item, quantity: clampCartQuantity(item.quantity + nextQuantity, item.stock_quantity ?? product.stock_quantity), stock_quantity: product.stock_quantity }
+                : item,
             )
           : [
               ...cart,
@@ -44,6 +52,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 image_url: product.image_url,
                 price: product.price,
                 quantity: nextQuantity,
+                stock_quantity: product.stock_quantity,
               },
             ];
         writeStorage(cartStorageKey(slug), next);
@@ -51,7 +60,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       },
       setQuantity(slug, productId, quantity) {
         const next = readCart(slug).map((item) =>
-          item.id === productId ? { ...item, quantity: clampQuantity(quantity) } : item,
+          item.id === productId ? { ...item, quantity: clampCartQuantity(quantity, item.stock_quantity) } : item,
         );
         writeStorage(cartStorageKey(slug), next);
         bump();

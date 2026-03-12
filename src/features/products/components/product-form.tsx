@@ -75,6 +75,7 @@ export function ProductForm({
     onSuccess: () => {
       toast.success(product ? 'Product updated' : 'Product added');
       queryClient.invalidateQueries({ queryKey: ['products', merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['product'] });
       onOpenChange(false);
     },
     onError: (error) => {
@@ -98,7 +99,7 @@ export function ProductForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'Add Product'}</DialogTitle>
           <DialogDescription>Keep products consistent, active, and ready for a real backend later.</DialogDescription>
@@ -107,13 +108,13 @@ export function ProductForm({
         <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
           <div className="space-y-2">
             <Label htmlFor="product-name">Name</Label>
-            <Input id="product-name" {...form.register('name')} />
+            <Input id="product-name" placeholder="Habesha Coffee Set" {...form.register('name')} />
             <FieldError message={form.formState.errors.name?.message} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="product-description">Description</Label>
-            <Textarea id="product-description" {...form.register('description')} />
+            <Textarea id="product-description" placeholder="Describe the product in a way shoppers can scan quickly." {...form.register('description')} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -159,6 +160,20 @@ export function ProductForm({
             {form.watch('image_url') ? (
               <img className="h-32 w-full rounded-2xl object-cover" src={form.watch('image_url')} alt={form.watch('name') || 'Product preview'} />
             ) : null}
+          </div>
+
+          <div className="rounded-[1.5rem] bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Storefront preview</p>
+            <div className="mt-3 flex items-center justify-between gap-4 rounded-[1.25rem] bg-white p-4 shadow-sm">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-900">{form.watch('name') || 'Product name'}</p>
+                <p className="mt-1 line-clamp-2 text-sm text-slate-500">{form.watch('description') || 'A short product summary will appear here.'}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-slate-900">ETB {form.watch('price') || 0}</p>
+                <p className="text-xs text-slate-400">Stock {form.watch('stock_quantity')}</p>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">

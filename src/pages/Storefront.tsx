@@ -1,17 +1,14 @@
 import { motion } from 'framer-motion';
-import { Search, ShoppingCart, Store } from 'lucide-react';
+import { ArrowRight, Search, ShoppingCart, Sparkles, Store } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
+import { StoreProductCard } from '@/components/storefront/product-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { MerchantThemeStyle } from '@/hooks/use-merchant-theme';
 import { useProductsByMerchant, useMerchantBySlug } from '@/hooks/queries';
 import { useSlugCart } from '@/hooks/cart';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PRODUCT_CATEGORIES, formatCurrency } from '@/utils';
+import { PRODUCT_CATEGORIES } from '@/utils';
 import { useMemo, useState } from 'react';
 
 export default function StorefrontPage() {
@@ -66,7 +63,7 @@ export default function StorefrontPage() {
                 <p className="text-xs text-slate-500">{merchant.owner_name}</p>
               </div>
             </Link>
-            <Link className="relative inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-soft" to={`/s/${slug}/checkout`}>
+            <Link className="relative inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-soft transition hover:-translate-y-0.5 hover:border-slate-300" to={`/s/${slug}/checkout`}>
               <ShoppingCart className="h-4 w-4" />
               Cart
               {cart.itemCount ? <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs text-white">{cart.itemCount}</span> : null}
@@ -77,11 +74,12 @@ export default function StorefrontPage() {
         <main className="pb-20">
           <section className="relative overflow-hidden">
             <div className="absolute inset-0 store-primary-soft" />
+            <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/80 to-transparent" />
             <div className="container-shell relative py-10 lg:py-14">
-              <div className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/70 shadow-soft">
+              <div className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/75 shadow-soft backdrop-blur-xl">
                 <div className="relative aspect-[16/6] min-h-[220px] overflow-hidden bg-slate-200">
                   {merchant.banner_url ? <img className="h-full w-full object-cover" src={merchant.banner_url} alt={merchant.business_name} /> : null}
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/65 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/72 via-slate-950/20 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-10">
                     <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
                       Ethiopian commerce, modern storefront
@@ -92,6 +90,13 @@ export default function StorefrontPage() {
                     <motion.p initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-3 max-w-xl text-sm leading-7 text-white/80">
                       {merchant.description}
                     </motion.p>
+                    <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-6 flex flex-wrap gap-3">
+                      {['Fast local ordering', 'Telebirr-style checkout', 'Curated catalog'].map((item) => (
+                        <span key={item} className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/90 backdrop-blur-md">
+                          {item}
+                        </span>
+                      ))}
+                    </motion.div>
                   </div>
                 </div>
               </div>
@@ -99,8 +104,8 @@ export default function StorefrontPage() {
           </section>
 
           <section className="container-shell mt-2">
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-soft">
-              <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+            <div className="surface-panel-strong p-4 md:p-5">
+              <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input className="pl-10" placeholder="Search the catalog" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
@@ -109,14 +114,28 @@ export default function StorefrontPage() {
                   {categories.map((category) => (
                     <button
                       key={category}
-                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                        selectedCategory === category ? 'store-primary-bg text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                        selectedCategory === category ? 'store-primary-bg text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                       onClick={() => setSelectedCategory(category as typeof selectedCategory)}
                     >
                       {category === 'all' ? 'All products' : category}
                     </button>
                   ))}
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500 sm:grid-cols-3">
+                <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3">
+                  <Sparkles className="h-4 w-4 text-brand-600" />
+                  Premium storefront treatment
+                </div>
+                <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3">
+                  <ShoppingCart className="h-4 w-4 text-brand-600" />
+                  Persistent cart by store
+                </div>
+                <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3">
+                  <ArrowRight className="h-4 w-4 text-brand-600" />
+                  Ready for fast checkout
                 </div>
               </div>
             </div>
@@ -133,35 +152,7 @@ export default function StorefrontPage() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {filteredProducts.map((product, index) => (
                   <motion.div key={product.id} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
-                    <Card className="group h-full overflow-hidden">
-                      <Link className="block" to={`/s/${slug}/products/${product.id}`}>
-                        <div className="relative aspect-[4/4.2] overflow-hidden bg-slate-100">
-                          {product.image_url ? <img className="h-full w-full object-cover transition duration-300 group-hover:scale-105" src={product.image_url} alt={product.name} /> : null}
-                          {product.stock_quantity === 0 ? <div className="absolute inset-0 grid place-items-center bg-slate-950/50 text-sm font-semibold text-white">Out of Stock</div> : null}
-                        </div>
-                      </Link>
-                      <div className="space-y-3 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <h3 className="font-semibold text-slate-900">{product.name}</h3>
-                          <Badge variant="outline">{product.category}</Badge>
-                        </div>
-                        <p className="text-sm leading-6 text-slate-500">{product.description?.slice(0, 78)}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xl font-bold store-primary-text">{formatCurrency(product.price)}</p>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={product.stock_quantity === 0}
-                            onClick={() => {
-                              cart.addItem(product, 1);
-                              toast.success(`${product.name} added to cart`);
-                            }}
-                          >
-                            Add
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
+                    <StoreProductCard product={product} slug={slug} />
                   </motion.div>
                 ))}
               </div>
@@ -171,7 +162,7 @@ export default function StorefrontPage() {
           </section>
         </main>
 
-        <Link className="fixed bottom-4 right-4 inline-flex items-center gap-2 rounded-full store-primary-bg px-5 py-3 text-sm font-semibold text-white shadow-lift md:hidden" to={`/s/${slug}/checkout`}>
+        <Link className="fixed bottom-4 right-4 inline-flex items-center gap-2 rounded-full store-primary-bg px-5 py-3 text-sm font-semibold text-white shadow-lift transition hover:brightness-95 md:hidden" to={`/s/${slug}/checkout`}>
           <ShoppingCart className="h-4 w-4" />
           Cart ({cart.itemCount})
         </Link>

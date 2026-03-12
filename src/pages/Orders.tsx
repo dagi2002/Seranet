@@ -29,6 +29,8 @@ export default function OrdersPage() {
     () => orders.filter((order) => (activeTab === 'all' ? true : order.status === activeTab)),
     [activeTab, orders],
   );
+  const paidOrders = orders.filter((order) => order.status === 'paid' || order.status === 'fulfilled').length;
+  const pendingOrders = orders.filter((order) => order.status === 'pending').length;
 
   return (
     <div className="space-y-8">
@@ -37,6 +39,12 @@ export default function OrdersPage() {
         title="Orders"
         description="Review incoming orders, filter by status, and jump into the details to update fulfillment."
       />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <OrderMetric label="Total orders" value={String(orders.length)} />
+        <OrderMetric label="Pending review" value={String(pendingOrders)} />
+        <OrderMetric label="Paid or fulfilled" value={String(paidOrders)} />
+      </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | OrderStatus)}>
         <TabsList>
@@ -58,10 +66,16 @@ export default function OrdersPage() {
           </div>
         ) : filteredOrders.length ? (
           <div className="divide-y divide-slate-200">
+            <div className="hidden bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:grid md:grid-cols-[1.1fr_0.9fr_0.6fr_0.6fr]">
+              <span>Order</span>
+              <span>Placed</span>
+              <span>Amount</span>
+              <span className="text-right">Status</span>
+            </div>
             {filteredOrders.map((order) => (
               <button
                 key={order.id}
-                className="grid w-full gap-4 p-5 text-left transition hover:bg-slate-50 md:grid-cols-[1.1fr_0.9fr_0.6fr_0.6fr]"
+                className="grid w-full gap-4 p-5 text-left transition hover:bg-slate-50 md:grid-cols-[1.1fr_0.9fr_0.6fr_0.6fr] md:items-center"
                 onClick={() => navigate(`/dashboard/orders/${order.id}`)}
               >
                 <div>
@@ -83,5 +97,14 @@ export default function OrdersPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+function OrderMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+    </Card>
   );
 }

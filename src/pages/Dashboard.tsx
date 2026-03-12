@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Package2, PlusCircle, Settings2, ShoppingBag, Store } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowRight, Package2, PlusCircle, Settings2, ShoppingBag, Store, Sparkles, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
@@ -36,6 +36,7 @@ export default function DashboardPage() {
     .reduce((sum, order) => sum + order.total_amount, 0);
   const activeProducts = products.filter((product) => product.is_active).length;
   const recentOrders = orders.slice(0, 10);
+  const lowStockProducts = products.filter((product) => product.stock_quantity > 0 && product.stock_quantity <= 5).slice(0, 3);
 
   return (
     <div className="space-y-8">
@@ -43,25 +44,49 @@ export default function DashboardPage() {
         eyebrow="Overview"
         title={`Welcome back, ${merchant.owner_name || merchant.business_name}`}
         description="Track sales, inspect recent orders, and keep the storefront in sync with the public customer flow."
+        actions={
+          <Button asChild variant="outline">
+            <Link to={`/s/${merchant.store_url_slug}`} target="_blank" rel="noreferrer">
+              Open storefront
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        }
       />
 
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          ['Today’s Sales', formatCurrency(todaysSales)],
-          ['Total Orders', String(orders.length)],
-          ['Active Products', String(activeProducts)],
-        ].map(([label, value]) => (
-          <Card key={label} className="p-6">
-            <p className="text-sm text-slate-500">{label}</p>
-            {productsLoading || ordersLoading ? <Skeleton className="mt-4 h-9 w-24" /> : <p className="mt-4 text-3xl font-bold">{value}</p>}
+          ['Today’s Sales', formatCurrency(todaysSales), 'vs local demand pulse'],
+          ['Total Orders', String(orders.length), 'across the demo storefront'],
+          ['Active Products', String(activeProducts), 'currently visible to shoppers'],
+        ].map(([label, value, hint]) => (
+          <Card key={label} className="overflow-hidden p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">{label}</p>
+                {productsLoading || ordersLoading ? <Skeleton className="mt-4 h-9 w-24" /> : <p className="mt-4 text-3xl font-extrabold">{value}</p>}
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 shadow-sm">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+            <p className="mt-6 text-sm text-slate-500">{hint}</p>
           </Card>
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick links</CardTitle>
+      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b border-slate-100">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Quick links</CardTitle>
+                <CardDescription>Common merchant actions with the same visual system as the storefront.</CardDescription>
+              </div>
+              <div className="hidden h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 sm:flex">
+                <Sparkles className="h-5 w-5" />
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <QuickLink icon={PlusCircle} title="Add Product" description="Create a new catalog item with pricing, stock, and imagery." to="/dashboard/products" />
@@ -71,6 +96,44 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle>Store health</CardTitle>
+            <CardDescription>Monitor visibility and inventory before they become storefront issues.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-[1.5rem] bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Store URL</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">seranet.et/{merchant.store_url_slug}</p>
+            </div>
+            <div className="rounded-[1.5rem] bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Low stock alerts</p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">{lowStockProducts.length ? `${lowStockProducts.length} product${lowStockProducts.length > 1 ? 's' : ''}` : 'All clear'}</p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                  {products.length} listed
+                </span>
+              </div>
+              {lowStockProducts.length ? (
+                <div className="mt-4 space-y-2">
+                  {lowStockProducts.map((product) => (
+                    <div key={product.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                      <span className="text-sm font-medium text-slate-900">{product.name}</span>
+                      <span className="text-sm text-amber-700">{product.stock_quantity} left</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm leading-6 text-slate-500">No low-stock issues in the current mock catalog.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div>
@@ -92,7 +155,7 @@ export default function DashboardPage() {
                 recentOrders.map((order) => (
                   <Link
                     key={order.id}
-                    className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50 md:flex-row md:items-center md:justify-between"
+                    className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200/80 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 md:flex-row md:items-center md:justify-between"
                     to={`/dashboard/orders/${order.id}`}
                   >
                     <div>
@@ -110,6 +173,29 @@ export default function DashboardPage() {
               ) : (
                 <p className="text-sm text-slate-500">No orders yet.</p>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Merchant snapshot</CardTitle>
+            <CardDescription>A quick public-facing preview of the current store identity.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-100">
+              {merchant.banner_url ? (
+                <img className="h-40 w-full object-cover" src={merchant.banner_url} alt={merchant.business_name} />
+              ) : (
+                <div className="h-40 w-full bg-gradient-to-r from-brand-100 via-white to-emerald-100" />
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <img className="h-14 w-14 rounded-2xl object-cover shadow-sm" src={merchant.logo_url || merchant.banner_url} alt={merchant.business_name} />
+              <div>
+                <p className="font-semibold text-slate-900">{merchant.business_name}</p>
+                <p className="text-sm text-slate-500">{merchant.description}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -133,7 +219,7 @@ function QuickLink({
 }) {
   return (
     <Link
-      className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+      className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md"
       to={to}
       target={external ? '_blank' : undefined}
       rel={external ? 'noreferrer' : undefined}

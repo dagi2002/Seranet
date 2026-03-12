@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MapPin, Phone, User } from 'lucide-react';
+import { ArrowLeft, Loader2, MapPin, Phone, ReceiptText, User } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { apiClient } from '@/api/apiClient';
@@ -96,6 +96,10 @@ export default function OrderDetailPage() {
               <CardTitle>Order summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Order ID</span>
+                <span className="font-medium text-slate-900">{order.id}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Status</span>
                 <StatusBadge status={order.status} />
@@ -130,6 +134,10 @@ export default function OrderDetailPage() {
                     <span className="text-slate-500">Customer Phone</span>
                     <span className="text-slate-900">{payment.customer_phone || 'N/A'}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Telebirr ref</span>
+                    <span className="text-slate-900">{payment.telebirr_txn_id || 'Pending callback'}</span>
+                  </div>
                 </>
               ) : <p className="text-slate-500">No payment record found.</p>}
             </CardContent>
@@ -139,25 +147,41 @@ export default function OrderDetailPage() {
             <CardHeader>
               <CardTitle>Actions</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
+            <CardContent className="space-y-4">
+              <div className="rounded-[1.5rem] bg-slate-50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-900 shadow-sm">
+                    <ReceiptText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Fulfillment controls</p>
+                    <p className="text-sm text-slate-500">Advance the order lifecycle without changing the data contract.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
               {order.status === 'pending' ? (
                 <>
                   <Button variant="destructive" onClick={() => mutation.mutate('cancelled')} disabled={mutation.isPending}>
+                    {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     Cancel Order
                   </Button>
                   <Button variant="primary" onClick={() => mutation.mutate('paid')} disabled={mutation.isPending}>
+                    {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     Mark as Paid
                   </Button>
                 </>
               ) : null}
               {order.status === 'paid' ? (
                 <Button variant="primary" onClick={() => mutation.mutate('fulfilled')} disabled={mutation.isPending}>
+                  {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   Mark as Fulfilled
                 </Button>
               ) : null}
               {order.status === 'fulfilled' || order.status === 'cancelled' ? (
                 <p className="text-sm text-slate-500">This order has reached a final state.</p>
               ) : null}
+              </div>
             </CardContent>
           </Card>
         </div>

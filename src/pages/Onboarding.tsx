@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, CheckCircle2, ImagePlus, Store } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ImagePlus, Sparkles, Store } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -26,6 +26,12 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
+
+const onboardingSteps = [
+  { value: 1, title: 'Business basics', description: 'Merchant identity and contact details' },
+  { value: 2, title: 'Store URL', description: 'Public slug and storefront story' },
+  { value: 3, title: 'Brand touch', description: 'Logo upload and final review' },
+];
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -113,7 +119,7 @@ export default function OnboardingPage() {
               </p>
 
               <div className="mt-10 flex gap-3">
-                {[1, 2, 3].map((value) => (
+                {onboardingSteps.map(({ value }) => (
                   <div
                     key={value}
                     className={`h-2 flex-1 rounded-full ${value <= step ? 'bg-emerald-400' : 'bg-white/15'}`}
@@ -130,25 +136,48 @@ export default function OnboardingPage() {
                   <p className="font-semibold text-white">Telebirr-ready checkout</p>
                   <p className="mt-1">The frontend keeps the local payment simulation and checkout rhythm customers expect.</p>
                 </div>
+                <div className="rounded-2xl bg-white/10 p-4">
+                  <p className="font-semibold text-white">Premium storefront system</p>
+                  <p className="mt-1">The merchant dashboard and customer storefront stay visually aligned from the first launch.</p>
+                </div>
               </div>
             </div>
 
             <div className="py-2">
-              <div className="mb-8 flex items-center gap-3">
-                {[1, 2, 3].map((value) => (
+              <div className="mb-8 grid gap-3 sm:grid-cols-3">
+                {onboardingSteps.map(({ value, title, description }) => (
                   <div
                     key={value}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${
-                      value === step ? 'bg-brand-600 text-white' : value < step ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                    className={`rounded-[1.5rem] border px-4 py-4 text-left transition-all duration-300 ${
+                      value === step
+                        ? 'border-brand-200 bg-brand-50 text-brand-700 shadow-sm'
+                        : value < step
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-500'
                     }`}
                   >
-                    {value < step ? <CheckCircle2 className="h-4 w-4" /> : value}
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${
+                        value === step ? 'bg-brand-600 text-white' : value < step ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {value < step ? <CheckCircle2 className="h-4 w-4" /> : value}
+                    </div>
+                    <p className="mt-4 font-semibold">{title}</p>
+                    <p className="mt-1 text-xs leading-5">{description}</p>
                   </div>
                 ))}
               </div>
 
               <AnimatePresence mode="wait">
-                <motion.div key={step} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}>
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.26, ease: 'easeOut' }}
+                  className="surface-panel border border-slate-200/80 p-6 sm:p-7"
+                >
                   {step === 1 ? (
                     <div className="space-y-5">
                       <div>
@@ -212,7 +241,13 @@ export default function OnboardingPage() {
                       ) : null}
 
                       <Card className="p-5">
-                        <p className="text-sm font-semibold text-slate-900">Ready to launch</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-sm font-semibold text-slate-900">Ready to launch</p>
+                          <span className="flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Launch preview
+                          </span>
+                        </div>
                         <div className="mt-4 space-y-3 text-sm text-slate-600">
                           <div className="flex justify-between gap-4">
                             <span>Business</span>
