@@ -11,17 +11,17 @@
 - **Secure Authentication:** Robust JWT-based authentication with bcrypt password hashing.
 - **Robust Database:** Powered by Prisma ORM with PostgreSQL and Prisma migrations.
 - **Payment Integration:** Built-in demo payment gateway (Telebirr simulation) for seamless checkout testing.
-- **Media Handling:** Local disk image uploads powered by Multer.
+- **Media Handling:** Cloud-backed image uploads through Multer and Cloudinary.
 
 ## 🛠 Tech Stack
 
 - **Frontend:** React, Vite, Tailwind CSS, TypeScript, React Router, React Query
-- **Backend:** Node.js, Express, Prisma, JWT, Multer
+- **Backend:** Node.js, Express, Prisma, JWT, Multer, Cloudinary
 - **Database:** PostgreSQL with Prisma ORM and migrations
 
 ## Deployment Prep
 
-Deployment guidance now lives in [docs/deployment.md](/Users/dagemamogne/Downloads/Seranet/docs/deployment.md). It includes the recommended production architecture, required env vars, migration and seed rehearsal steps, file storage considerations, build/start commands, and the production readiness checklist.
+Deployment guidance now lives in [docs/deployment.md](/Users/dagemamogne/Downloads/Seranet/docs/deployment.md). It includes the recommended production architecture, required env vars, migration and seed rehearsal steps, file storage considerations, build/start commands, and the production readiness checklist. For the current free Render staging path, run Prisma migrations locally against Neon before redeploying the backend.
 
 ## 🚀 Getting Started
 
@@ -43,6 +43,7 @@ Deployment guidance now lives in [docs/deployment.md](/Users/dagemamogne/Downloa
 3. Update `.env` with your settings:
    ```env
    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/seranet?schema=public"
+   DIRECT_URL="postgresql://postgres:postgres@localhost:5432/seranet?schema=public"
    JWT_SECRET="your-super-secret-jwt-key"
    PORT="4000"
    CORS_ORIGIN="http://localhost:5173"
