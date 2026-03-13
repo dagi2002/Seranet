@@ -38,6 +38,19 @@ export default function ProductsPage() {
     },
   });
 
+  const openCreateForm = () => {
+    setEditingProduct(null);
+    setShowForm(true);
+  };
+
+  const handleFormOpenChange = (open: boolean) => {
+    setShowForm(open);
+
+    if (!open) {
+      setEditingProduct(null);
+    }
+  };
+
   if (!merchant) return null;
 
   return (
@@ -49,10 +62,7 @@ export default function ProductsPage() {
         actions={
           <Button
             variant="primary"
-            onClick={() => {
-              setEditingProduct(null);
-              setShowForm(true);
-            }}
+            onClick={openCreateForm}
           >
             <PlusCircle className="h-4 w-4" />
             Add Product
@@ -138,11 +148,11 @@ export default function ProductsPage() {
           title="No products found"
           description="Add your first product or refine the search to find catalog items faster."
           actionLabel="Create product"
-          onAction={() => setShowForm(true)}
+          onAction={openCreateForm}
         />
       )}
 
-      <ProductForm open={showForm} onOpenChange={setShowForm} product={editingProduct} />
+      <ProductForm open={showForm} onOpenChange={handleFormOpenChange} product={editingProduct} />
     </div>
   );
 }
