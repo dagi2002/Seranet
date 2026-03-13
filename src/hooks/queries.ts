@@ -1,71 +1,85 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/api/apiClient';
 
+type QueryOptions = {
+  refetchInterval?: number | false;
+};
+
 export function useCurrentMerchant() {
   return useQuery({
     queryKey: ['current-merchant'],
-    queryFn: () => apiClient.auth.currentMerchant(),
+    queryFn: () => apiClient.merchants.getCurrent(),
   });
 }
 
 export function useMerchantBySlug(slug: string) {
   return useQuery({
     queryKey: ['merchant', slug],
-    queryFn: async () => {
-      const [merchant] = await apiClient.entities.Merchant.filter({ store_url_slug: slug });
-      return merchant ?? null;
-    },
+    queryFn: () => apiClient.storefront.getMerchantBySlug(slug),
     enabled: Boolean(slug),
   });
 }
 
-export function useProductsByMerchant(merchantId?: string, onlyActive?: boolean) {
+export function useCurrentMerchantProducts() {
   return useQuery({
-    queryKey: ['products', merchantId, onlyActive],
-    queryFn: async () => {
-      if (!merchantId) return [];
-      const products = await apiClient.entities.Product.filter({ merchant_id: merchantId });
-      return onlyActive ? products.filter((product) => product.is_active) : products;
-    },
-    enabled: Boolean(merchantId),
+    queryKey: ['merchant-products'],
+    queryFn: () => apiClient.products.listCurrentMerchant(),
   });
 }
 
-export function useOrdersByMerchant(merchantId?: string) {
+export function useStorefrontProducts(slug: string) {
   return useQuery({
-    queryKey: ['orders', merchantId],
-    queryFn: async () => {
-      if (!merchantId) return [];
-      return apiClient.entities.Order.filter({ merchant_id: merchantId });
-    },
-    enabled: Boolean(merchantId),
+    queryKey: ['storefront-products', slug],
+    queryFn: () => apiClient.storefront.getProducts(slug),
+    enabled: Boolean(slug),
   });
 }
 
-export function useOrder(orderId?: string) {
+export function useCurrentMerchantOrders() {
   return useQuery({
-    queryKey: ['order', orderId],
-    queryFn: () => (orderId ? apiClient.entities.Order.get(orderId) : Promise.resolve(null)),
+    queryKey: ['merchant-orders'],
+    queryFn: () => apiClient.orders.listCurrentMerchant(),
+  });
+}
+
+export function useCurrentMerchantOrder(orderId?: string) {
+  return useQuery({
+    queryKey: ['merchant-order', orderId],
+    queryFn: () => (orderId ? apiClient.orders.getCurrentMerchant(orderId) : Promise.resolve(null)),
     enabled: Boolean(orderId),
   });
 }
 
-export function usePaymentByOrder(orderId?: string) {
+export function useStorefrontOrder(slug: string, orderId?: string, accessToken?: string, options?: QueryOptions) {
   return useQuery({
-    queryKey: ['payment', orderId],
-    queryFn: async () => {
-      if (!orderId) return null;
-      const [payment] = await apiClient.entities.Payment.filter({ order_id: orderId });
-      return payment ?? null;
-    },
+    queryKey: ['storefront-order', slug, orderId, accessToken],
+    queryFn: () => (orderId && accessToken ? apiClient.storefront.getOrder(slug, orderId, accessToken) : Promise.resolve(null)),
+    enabled: Boolean(slug && orderId && accessToken),
+    refetchInterval: options?.refetchInterval,
+  });
+}
+
+export function useCurrentMerchantPayment(orderId?: string) {
+  return useQuery({
+    queryKey: ['merchant-payment', orderId],
+    queryFn: () => (orderId ? apiClient.payments.getCurrentMerchantOrderPayment(orderId) : Promise.resolve(null)),
     enabled: Boolean(orderId),
   });
 }
 
-export function useProduct(productId?: string) {
+export function useStorefrontPayment(slug: string, orderId?: string, accessToken?: string, options?: QueryOptions) {
   return useQuery({
-    queryKey: ['product', productId],
-    queryFn: () => (productId ? apiClient.entities.Product.get(productId) : Promise.resolve(null)),
-    enabled: Boolean(productId),
+    queryKey: ['storefront-payment', slug, orderId, accessToken],
+    queryFn: () => (orderId && accessToken ? apiClient.storefront.getPayment(slug, orderId, accessToken) : Promise.resolve(null)),
+    enabled: Boolean(slug && orderId && accessToken),
+    refetchInterval: options?.refetchInterval,
+  });
+}
+
+export function useStorefrontProduct(slug: string, productId?: string) {
+  return useQuery({
+    queryKey: ['storefront-product', slug, productId],
+    queryFn: () => (productId ? apiClient.storefront.getProduct(slug, productId) : Promise.resolve(null)),
+    enabled: Boolean(slug && productId),
   });
 }

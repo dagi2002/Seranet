@@ -5,6 +5,7 @@ import { clampQuantity } from '@/utils';
 
 type CartContextValue = {
   getCart: (slug: string) => CartItem[];
+  replaceCart: (slug: string, items: CartItem[]) => void;
   setQuantity: (slug: string, productId: string, quantity: number) => void;
   addItem: (slug: string, product: Product, quantity?: number) => void;
   removeItem: (slug: string, productId: string) => void;
@@ -25,14 +26,38 @@ function clampCartQuantity(quantity: number, stockQuantity?: number) {
   return Math.min(normalized, Math.max(1, stockQuantity));
 }
 
+function toCartItem(product: Product, quantity: number) {
+  return {
+    id: product.id,
+    name: product.name,
+    image_url: product.image_url,
+    price: product.price,
+    quantity,
+    stock_quantity: product.stock_quantity,
+  };
+}
+
+function persistCart(slug: string, items: CartItem[]) {
+  if (items.length === 0) {
+    removeStorage(cartStorageKey(slug));
+    return;
+  }
+
+  writeStorage(cartStorageKey(slug), items);
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [, setVersion] = useState(0);
+  const [version, setVersion] = useState(0);
   const bump = () => setVersion((value) => value + 1);
 
   const value = useMemo<CartContextValue>(
     () => ({
       getCart(slug) {
         return readCart(slug);
+      },
+      replaceCart(slug, items) {
+        persistCart(slug, items);
+        bump();
       },
       addItem(slug, product, quantity = 1) {
         const cart = readCart(slug);
@@ -41,33 +66,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const next = existing
           ? cart.map((item) =>
               item.id === product.id
-                ? { ...item, quantity: clampCartQuantity(item.quantity + nextQuantity, item.stock_quantity ?? product.stock_quantity), stock_quantity: product.stock_quantity }
+                ? toCartItem(
+                    product,
+                    clampCartQuantity(item.quantity + nextQuantity, product.stock_quantity),
+                  )
                 : item,
             )
-          : [
-              ...cart,
-              {
-                id: product.id,
-                name: product.name,
-                image_url: product.image_url,
-                price: product.price,
-                quantity: nextQuantity,
-                stock_quantity: product.stock_quantity,
-              },
-            ];
-        writeStorage(cartStorageKey(slug), next);
+          : [...cart, toCartItem(product, nextQuantity)];
+        persistCart(slug, next);
         bump();
       },
       setQuantity(slug, productId, quantity) {
         const next = readCart(slug).map((item) =>
           item.id === productId ? { ...item, quantity: clampCartQuantity(quantity, item.stock_quantity) } : item,
         );
-        writeStorage(cartStorageKey(slug), next);
+        persistCart(slug, next);
         bump();
       },
       removeItem(slug, productId) {
         const next = readCart(slug).filter((item) => item.id !== productId);
-        writeStorage(cartStorageKey(slug), next);
+        persistCart(slug, next);
         bump();
       },
       clearCart(slug) {
@@ -81,7 +99,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return readCart(slug).reduce((sum, item) => sum + item.price * item.quantity, 0);
       },
     }),
-    [],
+    [version],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
@@ -97,6 +115,7 @@ export function useSlugCart(slug: string) {
   const cart = useCartStore();
   return {
     items: cart.getCart(slug),
+    replaceItems: (items: CartItem[]) => cart.replaceCart(slug, items),
     addItem: (product: Product, quantity?: number) => cart.addItem(slug, product, quantity),
     setQuantity: (productId: string, quantity: number) => cart.setQuantity(slug, productId, quantity),
     removeItem: (productId: string) => cart.removeItem(slug, productId),

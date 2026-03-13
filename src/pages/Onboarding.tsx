@@ -14,15 +14,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { STORAGE_KEYS, writeStorage } from '@/services/storage';
-import { slugify } from '@/utils';
+import { slugify, validateImageFile } from '@/utils';
 
 const schema = z.object({
   business_name: z.string().min(2, 'Business name is required'),
   owner_name: z.string().min(2, 'Owner name is required'),
+  email: z.string().email('Valid email is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirm_password: z.string().min(8, 'Please confirm your password'),
   phone: z.string().min(10, 'Phone number is required'),
   store_url_slug: z.string().min(2, 'Store URL is required'),
   description: z.string().optional(),
   logo_url: z.string().optional(),
+}).refine((value) => value.password === value.confirm_password, {
+  path: ['confirm_password'],
+  message: 'Passwords must match',
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -44,6 +50,9 @@ export default function OnboardingPage() {
     defaultValues: {
       business_name: '',
       owner_name: '',
+      email: '',
+      password: '',
+      confirm_password: '',
       phone: '',
       store_url_slug: '',
       description: '',
@@ -63,7 +72,7 @@ export default function OnboardingPage() {
   const nextStep = async () => {
     const valid =
       step === 1
-        ? await form.trigger(['business_name', 'owner_name', 'phone'])
+        ? await form.trigger(['business_name', 'owner_name', 'email', 'password', 'confirm_password', 'phone'])
         : step === 2
           ? await form.trigger(['store_url_slug'])
           : await form.trigger();
@@ -79,9 +88,14 @@ export default function OnboardingPage() {
 
   const uploadFile = async (file?: File) => {
     if (!file) return;
+    const validationError = validateImageFile(file, 'Logo');
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setUploading(true);
     try {
-      const result = await apiClient.integrations.Core.UploadFile({ file });
+      const result = await apiClient.uploads.uploadOnboardingLogo(file);
       form.setValue('logo_url', result.file_url, { shouldDirty: true });
       toast.success('Logo uploaded');
     } catch (error) {
@@ -191,6 +205,17 @@ export default function OnboardingPage() {
                       <Field label="Owner name" error={form.formState.errors.owner_name?.message}>
                         <Input {...form.register('owner_name')} placeholder="Abeba Bekele" />
                       </Field>
+                      <Field label="Email" error={form.formState.errors.email?.message}>
+                        <Input {...form.register('email')} placeholder="abeba@example.com" type="email" />
+                      </Field>
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <Field label="Password" error={form.formState.errors.password?.message}>
+                          <Input {...form.register('password')} placeholder="Create a password" type="password" />
+                        </Field>
+                        <Field label="Confirm password" error={form.formState.errors.confirm_password?.message}>
+                          <Input {...form.register('confirm_password')} placeholder="Repeat password" type="password" />
+                        </Field>
+                      </div>
                       <Field label="Phone" error={form.formState.errors.phone?.message}>
                         <Input {...form.register('phone')} placeholder="0911223344" />
                       </Field>
@@ -233,7 +258,15 @@ export default function OnboardingPage() {
                           <p className="text-sm font-medium text-slate-700">{uploading ? 'Uploading logo...' : 'Drop a logo or click to upload'}</p>
                           <p className="text-xs text-slate-500">Stored locally for MVP. Replaceable later.</p>
                         </div>
-                        <input className="hidden" type="file" accept="image/*" onChange={(event) => uploadFile(event.target.files?.[0])} />
+                        <input
+                          className="hidden"
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => {
+                            uploadFile(event.target.files?.[0]);
+                            event.currentTarget.value = '';
+                          }}
+                        />
                       </label>
 
                       {form.watch('logo_url') ? (

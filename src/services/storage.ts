@@ -1,7 +1,8 @@
 export const STORAGE_KEYS = {
   db: 'seranet_mock_db_v1',
   user: 'seranet_current_user',
-  onboarding: 'onboarding_data',
+  authToken: 'seranet_auth_token',
+  onboarding: 'seranet_onboarding_v2',
 };
 
 export const cartStorageKey = (slug: string) => `cart_${slug}`;
@@ -27,4 +28,14 @@ export function writeStorage<T>(key: string, value: T) {
 export function removeStorage(key: string) {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(key);
+}
+
+export function readTextStorage(key: string) {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(key);
+}
+
+export function writeTextStorage(key: string, value: string) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(key, value);
 }

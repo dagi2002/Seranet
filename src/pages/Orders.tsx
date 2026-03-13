@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useCurrentMerchant, useOrdersByMerchant } from '@/hooks/queries';
+import { useCurrentMerchantOrders } from '@/hooks/queries';
 import type { OrderStatus } from '@/types/seranet';
 import { formatCurrency, formatDateTime } from '@/utils';
 
@@ -22,8 +22,7 @@ const orderTabs: Array<{ value: 'all' | OrderStatus; label: string }> = [
 export default function OrdersPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'all' | OrderStatus>('all');
-  const { data: merchant } = useCurrentMerchant();
-  const { data: orders = [], isLoading } = useOrdersByMerchant(merchant?.id);
+  const { data: orders = [], isLoading } = useCurrentMerchantOrders();
 
   const filteredOrders = useMemo(
     () => orders.filter((order) => (activeTab === 'all' ? true : order.status === activeTab)),

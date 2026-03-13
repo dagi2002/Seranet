@@ -8,22 +8,24 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useOrder, usePaymentByOrder } from '@/hooks/queries';
+import { useCurrentMerchantOrder, useCurrentMerchantPayment } from '@/hooks/queries';
 import type { OrderStatus } from '@/types/seranet';
 import { formatCurrency, formatDateTime } from '@/utils';
 
 export default function OrderDetailPage() {
   const queryClient = useQueryClient();
   const { orderId = '' } = useParams();
-  const { data: order, isLoading } = useOrder(orderId);
-  const { data: payment, isLoading: paymentLoading } = usePaymentByOrder(orderId);
+  const { data: order, isLoading } = useCurrentMerchantOrder(orderId);
+  const { data: payment, isLoading: paymentLoading } = useCurrentMerchantPayment(orderId);
 
   const mutation = useMutation({
-    mutationFn: (status: OrderStatus) => apiClient.entities.Order.update(orderId, { status }),
+    mutationFn: (status: OrderStatus) => apiClient.orders.updateStatus(orderId, status),
     onSuccess: () => {
       toast.success('Order updated');
-      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-payment', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-products'] });
     },
   });
 

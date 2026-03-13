@@ -1,51 +1,142 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { prisma } from '../prisma';
-import { authenticate, AuthRequest } from '../middleware/auth';
-import { serializeMerchant } from '../utils/merchant';
+import { asyncHandler } from '../lib/async-handler';
+import { ConflictError, NotFoundError } from '../lib/errors';
+import { prisma } from '../lib/prisma';
+import { signAuthToken } from '../lib/jwt';
+import { authenticate, type AuthenticatedRequest } from '../middleware/auth';
+import {
+  optionalPhone,
+  optionalTrimmedString,
+  optionalUrl,
+  requireEmail,
+  requireObject,
+  requireSlug,
+  requireTrimmedString,
+} from '../lib/validation';
+import { serializeMerchant, serializeUser } from '../utils/serializers';
 
 const router = Router();
 
-router.post('/register', async (req, res) => {
-  const { email, password, businessName, ownerName, phone, storeSlug } = req.body;
-  const existing = await prisma.merchant.findFirst({
-    where: {
-      OR: [{ email }, { storeSlug }],
-    },
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+router.post('/register', asyncHandler(async (req, res) => {
+  const body = requireObject(req.body, 'Request body');
+  const merchant = requireObject(body.merchant, 'Merchant');
+
+  const normalizedEmail = normalizeEmail(requireEmail(body.email, 'Email'));
+  const normalizedFullName = requireTrimmedString(body.full_name, 'Full name', { minLength: 2, maxLength: 120 });
+  const password = requireTrimmedString(body.password, 'Password', { minLength: 8, maxLength: 128 });
+  const merchantBusinessName = requireTrimmedString(merchant.business_name, 'Merchant business name', {
+    minLength: 2,
+    maxLength: 120,
   });
-  if (existing) {
-    const message = existing.email === email ? 'Email already registered' : 'Store slug already registered';
-    return res.status(400).json({ message });
+  const merchantStoreSlug = requireSlug(merchant.store_url_slug, 'Store slug');
+  const merchantOwnerName = optionalTrimmedString(merchant.owner_name, 'Owner name', { maxLength: 120 });
+  const merchantPhone = optionalPhone(merchant.phone, 'Phone');
+  const merchantDescription = optionalTrimmedString(merchant.description, 'Description', { maxLength: 600 });
+  const merchantLogoUrl = optionalUrl(merchant.logo_url, 'Logo URL');
+  const merchantBannerUrl = optionalUrl(merchant.banner_url, 'Banner URL');
+
+  const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existingUser) {
+    throw new ConflictError('Email already registered');
   }
 
-  if (!email || !password || !businessName || !ownerName || !phone || !storeSlug) {
-    return res.status(400).json({ message: 'All fields are required' });
+  const existingMerchant = await prisma.merchant.findUnique({
+    where: { storeSlug: merchantStoreSlug },
+  });
+  if (existingMerchant) {
+    throw new ConflictError('That store URL is already taken');
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const merchant = await prisma.merchant.create({
-    data: { email, passwordHash, businessName, ownerName, phone, storeSlug },
+  const created = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email: normalizedEmail,
+        fullName: normalizedFullName,
+        passwordHash,
+      },
+    });
+
+    const createdMerchant = await tx.merchant.create({
+      data: {
+        userId: user.id,
+        businessName: merchantBusinessName,
+        ownerName: merchantOwnerName,
+        phone: merchantPhone,
+        storeSlug: merchantStoreSlug,
+        description: merchantDescription,
+        logoUrl: merchantLogoUrl,
+        bannerUrl: merchantBannerUrl,
+      },
+      include: {
+        user: {
+          select: { email: true },
+        },
+      },
+    });
+
+    return { user, merchant: createdMerchant };
   });
-  const token = jwt.sign({ userId: merchant.id }, process.env.JWT_SECRET || 'seranet-secret', { expiresIn: '7d' });
-  return res.json({ token, merchant: serializeMerchant(merchant) });
-});
 
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
-  const merchant = await prisma.merchant.findUnique({ where: { email } });
-  if (!merchant) return res.status(400).json({ message: 'Invalid credentials' });
-  const valid = await bcrypt.compare(password, merchant.passwordHash);
-  if (!valid) return res.status(400).json({ message: 'Invalid credentials' });
-  const token = jwt.sign({ userId: merchant.id }, process.env.JWT_SECRET || 'seranet-secret', { expiresIn: '7d' });
-  return res.json({ token, merchant: serializeMerchant(merchant) });
-});
+  const token = signAuthToken({ userId: created.user.id });
+  res.status(201).json({
+    token,
+    user: serializeUser(created.user),
+    merchant: serializeMerchant(created.merchant),
+  });
+}));
 
-router.get('/me', authenticate, async (req: AuthRequest, res) => {
-  const merchant = await prisma.merchant.findUnique({ where: { id: req.userId } });
-  if (!merchant) return res.status(404).json({ message: 'Not found' });
-  return res.json(serializeMerchant(merchant));
-});
+router.post('/login', asyncHandler(async (req, res) => {
+  const body = requireObject(req.body, 'Request body');
+  const normalizedEmail = normalizeEmail(requireEmail(body.email, 'Email'));
+  const password = requireTrimmedString(body.password, 'Password', { minLength: 8, maxLength: 128 });
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    include: {
+      merchant: {
+        include: {
+          user: {
+            select: { email: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    res.status(401).json({ message: 'Invalid credentials' });
+    return;
+  }
+
+  const isValid = await bcrypt.compare(password, user.passwordHash);
+  if (!isValid) {
+    res.status(401).json({ message: 'Invalid credentials' });
+    return;
+  }
+
+  const token = signAuthToken({ userId: user.id });
+  res.json({
+    token,
+    user: serializeUser(user),
+    merchant: user.merchant ? serializeMerchant(user.merchant) : null,
+  });
+}));
+
+router.get('/me', authenticate, asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+  });
+
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  res.json(serializeUser(user));
+}));
 
 export default router;

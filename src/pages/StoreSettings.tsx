@@ -16,8 +16,9 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { MerchantThemeStyle } from '@/hooks/use-merchant-theme';
 import { useCurrentMerchant } from '@/hooks/queries';
-import { MERCHANT_COLOR_SWATCHES } from '@/utils';
+import { MERCHANT_COLOR_SWATCHES, validateImageFile } from '@/utils';
 import { Link } from 'react-router-dom';
+import type { Merchant } from '@/types/seranet';
 
 const schema = z.object({
   business_name: z.string().min(2),
@@ -32,6 +33,20 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
+
+function toFormValues(merchant: Merchant): FormValues {
+  return {
+    business_name: merchant.business_name,
+    owner_name: merchant.owner_name || '',
+    phone: merchant.phone || '',
+    store_url_slug: merchant.store_url_slug,
+    description: merchant.description || '',
+    logo_url: merchant.logo_url || '',
+    banner_url: merchant.banner_url || '',
+    primary_color: merchant.primary_color,
+    is_active: merchant.is_active,
+  };
+}
 
 export default function StoreSettingsPage() {
   const queryClient = useQueryClient();
@@ -54,25 +69,23 @@ export default function StoreSettingsPage() {
 
   useEffect(() => {
     if (!merchant) return;
-    form.reset({
-      business_name: merchant.business_name,
-      owner_name: merchant.owner_name || '',
-      phone: merchant.phone || '',
-      store_url_slug: merchant.store_url_slug,
-      description: merchant.description || '',
-      logo_url: merchant.logo_url || '',
-      banner_url: merchant.banner_url || '',
-      primary_color: merchant.primary_color,
-      is_active: merchant.is_active,
-    });
+    form.reset(toFormValues(merchant));
   }, [form, merchant]);
 
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => apiClient.entities.Merchant.update(merchant!.id, values),
-    onSuccess: () => {
+    mutationFn: (values: FormValues): Promise<Merchant> => apiClient.merchants.updateCurrent(values),
+    onSuccess: (updated) => {
+      const previousSlug = merchant?.store_url_slug;
+
+      form.reset(toFormValues(updated));
+      queryClient.setQueryData(['current-merchant'], updated);
+      if (previousSlug) {
+        queryClient.removeQueries({ queryKey: ['merchant', previousSlug] });
+      }
+      queryClient.setQueryData(['merchant', updated.store_url_slug], updated);
       toast.success('Store settings saved');
       queryClient.invalidateQueries({ queryKey: ['current-merchant'] });
-      queryClient.invalidateQueries({ queryKey: ['merchant', merchant?.store_url_slug] });
+      queryClient.invalidateQueries({ queryKey: ['merchant', updated.store_url_slug] });
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Could not save settings');
@@ -81,9 +94,17 @@ export default function StoreSettingsPage() {
 
   const uploadFile = async (field: 'logo_url' | 'banner_url', file?: File) => {
     if (!file) return;
+    const validationError = validateImageFile(file, field === 'logo_url' ? 'Logo' : 'Banner');
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setUploadingField(field);
     try {
-      const result = await apiClient.integrations.Core.UploadFile({ file });
+      const result =
+        field === 'logo_url'
+          ? await apiClient.uploads.uploadMerchantLogo(file)
+          : await apiClient.uploads.uploadMerchantBanner(file);
       form.setValue(field, result.file_url, { shouldDirty: true });
       toast.success(field === 'logo_url' ? 'Logo updated' : 'Banner updated');
     } catch (error) {
@@ -95,6 +116,8 @@ export default function StoreSettingsPage() {
 
   if (!merchant) return null;
 
+  const storefrontSlug = form.watch('store_url_slug') || merchant.store_url_slug;
+
   return (
     <div className="space-y-8">
       <MerchantThemeStyle color={form.watch('primary_color')} />
@@ -104,7 +127,7 @@ export default function StoreSettingsPage() {
         description="Update merchant details, storefront visuals, and brand color while keeping the data contract backend-ready."
         actions={
           <Button asChild variant="outline">
-            <Link to={`/s/${merchant.store_url_slug}`} target="_blank" rel="noreferrer">
+            <Link to={`/s/${storefrontSlug}`} target="_blank" rel="noreferrer">
               Preview storefront
               <ExternalLink className="h-4 w-4" />
             </Link>
@@ -229,9 +252,17 @@ function UploadField({
         <UploadCloud className="h-5 w-5 text-slate-400" />
         <div>
           <p className="text-sm font-medium text-slate-700">{loading ? 'Uploading...' : `Upload ${label.toLowerCase()}`}</p>
-          <p className="text-xs text-slate-500">Stored locally for phase 1.</p>
+          <p className="text-xs text-slate-500">Uploaded through the backend media endpoint.</p>
         </div>
-        <input className="hidden" type="file" accept="image/*" onChange={(event) => onChange(event.target.files?.[0])} />
+        <input
+          className="hidden"
+          type="file"
+          accept="image/*"
+          onChange={(event) => {
+            onChange(event.target.files?.[0]);
+            event.currentTarget.value = '';
+          }}
+        />
       </label>
       {preview ? <img className="h-40 w-full rounded-2xl object-cover" src={preview} alt={label} /> : null}
     </div>

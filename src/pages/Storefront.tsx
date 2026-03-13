@@ -1,23 +1,29 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Search, ShoppingCart, Sparkles, Store } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { StoreProductCard } from '@/components/storefront/product-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { MerchantThemeStyle } from '@/hooks/use-merchant-theme';
-import { useProductsByMerchant, useMerchantBySlug } from '@/hooks/queries';
+import { useMerchantBySlug, useStorefrontProducts } from '@/hooks/queries';
 import { useSlugCart } from '@/hooks/cart';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PRODUCT_CATEGORIES } from '@/utils';
-import { useMemo, useState } from 'react';
 
 export default function StorefrontPage() {
   const { slug = '' } = useParams();
-  const { data: merchant, isLoading: merchantLoading } = useMerchantBySlug(slug);
-  const { data: products = [], isLoading: productsLoading } = useProductsByMerchant(merchant?.id, true);
+  const { data: merchant, isLoading: merchantLoading, isError: merchantError } = useMerchantBySlug(slug);
+  const { data: products = [], isLoading: productsLoading, isError: productsError } = useStorefrontProducts(slug);
   const cart = useSlugCart(slug);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'all' | (typeof PRODUCT_CATEGORIES)[number]['value']>('all');
+  const merchantImage = merchant?.logo_url || merchant?.banner_url;
+
+  useEffect(() => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+  }, [slug]);
 
   const categories = useMemo(
     () => ['all', ...Array.from(new Set(products.map((product) => product.category)))],
@@ -42,6 +48,14 @@ export default function StorefrontPage() {
     );
   }
 
+  if (merchantError || productsError) {
+    return (
+      <div className="container-shell py-16">
+        <EmptyState icon={Store} title="Storefront unavailable" description="We could not load this storefront right now. Refresh the page or try again shortly." />
+      </div>
+    );
+  }
+
   if (!merchant || !merchant.is_active) {
     return (
       <div className="container-shell py-16">
@@ -57,7 +71,13 @@ export default function StorefrontPage() {
         <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
           <div className="container-shell flex h-16 items-center justify-between gap-4">
             <Link className="flex items-center gap-3" to={`/s/${merchant.store_url_slug}`}>
-              <img className="h-11 w-11 rounded-2xl object-cover" src={merchant.logo_url || merchant.banner_url} alt={merchant.business_name} />
+              {merchantImage ? (
+                <img className="h-11 w-11 rounded-2xl object-cover" src={merchantImage} alt={merchant.business_name} />
+              ) : (
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: merchant.primary_color }}>
+                  {merchant.business_name.slice(0, 1)}
+                </div>
+              )}
               <div>
                 <p className="font-semibold text-slate-900">{merchant.business_name}</p>
                 <p className="text-xs text-slate-500">{merchant.owner_name}</p>

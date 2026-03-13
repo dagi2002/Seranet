@@ -11,9 +11,14 @@ import {
   ShoppingCart,
   Store,
 } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/auth';
 
 const features = [
@@ -36,7 +41,26 @@ const heroHighlights = ['Familiar Telebirr checkout cues', 'Storefront and dashb
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { restoreDemo } = useAuth();
+  const { login, restoreDemo } = useAuth();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      await login({ email: email.trim().toLowerCase(), password });
+      setLoginOpen(false);
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not log in');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -59,6 +83,9 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Button variant="ghost" onClick={() => setLoginOpen(true)}>
+              Merchant Login
+            </Button>
             <Button variant="ghost" onClick={async () => { await restoreDemo(); navigate('/dashboard'); }}>
               Demo Dashboard
             </Button>
@@ -286,6 +313,45 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Merchant Login</DialogTitle>
+            <DialogDescription>Use your Seranet merchant account to continue to the dashboard.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleLogin}>
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <Input
+                id="login-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="merchant@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Password</Label>
+              <Input
+                id="login-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setLoginOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={isSubmitting}>
+                Sign In
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
