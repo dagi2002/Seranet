@@ -16,6 +16,7 @@ export const PRODUCT_CATEGORIES: { value: ProductCategory; label: string }[] = [
 ];
 
 export const MERCHANT_COLOR_SWATCHES = ['#0D9488', '#059669', '#0F766E', '#2563EB', '#EA580C', '#BE123C'];
+export const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 export const slugify = (value: string) =>
   value
@@ -47,3 +48,15 @@ export const statusLabel = (status: OrderStatus | PaymentStatus) =>
   status.charAt(0).toUpperCase() + status.slice(1);
 
 export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const validateImageFile = (file: File, label = 'Image') => {
+  if (!file.type.startsWith('image/')) {
+    return `${label} must be an image file`;
+  }
+
+  if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+    return `${label} must be 5 MB or smaller`;
+  }
+
+  return null;
+};

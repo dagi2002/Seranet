@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { apiClient } from '@/api/apiClient';
-import { readDb } from '@/services/mock-db';
+import { getCurrentMerchantFromDb, readDb } from '@/services/mock-db';
 import { STORAGE_KEYS } from '@/services/storage';
 
 describe('mock api client', () => {
@@ -14,15 +13,9 @@ describe('mock api client', () => {
     expect(db.merchants[0]?.store_url_slug).toBe('addis-market-studio');
   });
 
-  it('rejects duplicate merchant slugs', async () => {
+  it('returns the newest merchant for the current user email', () => {
     localStorage.removeItem(STORAGE_KEYS.db);
-
-    await expect(
-      apiClient.entities.Merchant.create({
-        created_by: 'demo@seranet.et',
-        business_name: 'Duplicate Demo',
-        store_url_slug: 'addis-market-studio',
-      }),
-    ).rejects.toThrow('already taken');
+    const merchant = getCurrentMerchantFromDb('demo@seranet.et');
+    expect(merchant?.store_url_slug).toBe('addis-market-studio');
   });
 });

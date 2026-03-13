@@ -3,74 +3,141 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model Merchant {
+enum UserRole {
+  admin
+}
+
+enum ProductCategory {
+  clothing
+  electronics
+  food
+  home
+  beauty
+  sports
+  other
+}
+
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+  fulfilled
+}
+
+enum PaymentStatus {
+  initiated
+  pending
+  success
+  failed
+}
+
+enum PaymentProvider {
+  telebirr
+}
+
+model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
-  businessName String
-  ownerName    String
-  phone        String
-  storeSlug    String   @unique
-  logoUrl      String?
+  fullName     String
+  role         UserRole @default(admin)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  merchant     Merchant?
+}
+
+model Merchant {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  businessName String
+  ownerName    String?
+  phone        String?
+  storeSlug    String    @unique
+  description  String?
+  logoUrl      String?
+  bannerUrl    String?
+  primaryColor String    @default("#0D9488")
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   products     Product[]
   orders       Order[]
   payments     Payment[]
+
+  @@index([storeSlug])
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  merchant    Merchant @relation(fields: [merchantId], references: [id])
-  merchantId  String
-  name        String
-  description String?
-  price       Float
-  stock       Int
-  imageUrl    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orderItems  OrderItem[]
+  id            String          @id @default(cuid())
+  merchantId    String
+  name          String
+  description   String?
+  price         Int
+  stockQuantity Int             @default(0)
+  imageUrls     String[]        @default([])
+  category      ProductCategory @default(other)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  merchant      Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  orderItems    OrderItem[]
+
+  @@index([merchantId])
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  merchant       Merchant    @relation(fields: [merchantId], references: [id])
-  merchantId     String
-  customerName   String
-  customerPhone  String
-  customerAddress String
-  totalAmount    Float
-  status         String
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  items          OrderItem[]
-  payment        Payment?
+  id              String      @id @default(cuid())
+  merchantId      String
+  orderNumber     String      @unique
+  publicAccessToken String    @unique
+  customerName    String
+  customerPhone   String
+  customerAddress String?
+  totalAmount     Int
+  status          OrderStatus @default(pending)
+  stockReserved   Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  merchant        Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+  payment         Payment?
+
+  @@index([merchantId, createdAt])
 }
 
 model OrderItem {
-  id             String   @id @default(cuid())
-  order          Order    @relation(fields: [orderId], references: [id])
-  orderId        String
-  product        Product  @relation(fields: [productId], references: [id])
-  productId      String
-  quantity       Int
-  priceAtPurchase Float
+  id              String  @id @default(cuid())
+  orderId         String
+  productId       String
+  productName     String
+  quantity        Int
+  priceAtPurchase Int
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model Payment {
-  id         String   @id @default(cuid())
-  order      Order    @relation(fields: [orderId], references: [id])
-  orderId    String   @unique
-  merchant   Merchant @relation(fields: [merchantId], references: [id])
-  merchantId String
-  status     String
-  amount     Float
-  payload    String
-  createdAt  DateTime @default(now())
+  id              String          @id @default(cuid())
+  orderId         String          @unique
+  merchantId      String
+  provider        PaymentProvider @default(telebirr)
+  status          PaymentStatus   @default(initiated)
+  amount          Int
+  customerPhone   String?
+  telebirrTxnId   String?
+  callbackPayload String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  merchant        Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
 }

@@ -33,6 +33,7 @@ export type Product = {
   price: number;
   stock_quantity: number;
   image_url?: string;
+  image_urls: string[];
   category: ProductCategory;
   is_active: boolean;
 };
@@ -60,6 +61,17 @@ export type Order = {
   status: OrderStatus;
 };
 
+export type PublicOrder = {
+  id: string;
+  order_number: string;
+  total_amount: number;
+  status: OrderStatus;
+};
+
+export type CheckoutOrder = PublicOrder & {
+  public_access_token: string;
+};
+
 export type PaymentStatus = 'initiated' | 'pending' | 'success' | 'failed';
 
 export type Payment = {
@@ -74,11 +86,47 @@ export type Payment = {
   callback_payload?: string;
 };
 
-export type DemoUser = {
+export type PublicPayment = {
+  id: string;
+  order_id: string;
+  telebirr_txn_id?: string;
+  amount: number;
+  status: PaymentStatus;
+};
+
+export type AuthUser = {
   id: string;
   email: string;
   full_name: string;
   role: 'admin';
+};
+
+export type DemoUser = AuthUser;
+
+export type LoginInput = {
+  email: string;
+  password: string;
+};
+
+export type RegisterInput = {
+  full_name: string;
+  email: string;
+  password: string;
+  merchant: {
+    business_name: string;
+    owner_name?: string;
+    phone?: string;
+    store_url_slug: string;
+    description?: string;
+    logo_url?: string;
+    banner_url?: string;
+  };
+};
+
+export type AuthResponse = {
+  token: string;
+  user: AuthUser;
+  merchant: Merchant | null;
 };
 
 export type CartItem = {

@@ -1,62 +1,78 @@
 import confetti from 'canvas-confetti';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { apiClient } from '@/api/apiClient';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
+import { EmptyState } from '@/components/shared/empty-state';
 import { MerchantThemeStyle } from '@/hooks/use-merchant-theme';
-import { useMerchantBySlug, useOrder, usePaymentByOrder } from '@/hooks/queries';
+import { useMerchantBySlug, useStorefrontOrder, useStorefrontPayment } from '@/hooks/queries';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { queryClient } from '@/lib/query-client';
-import { wait, formatCurrency } from '@/utils';
+import { formatCurrency } from '@/utils';
 
 export default function PaymentSuccessPage() {
   const { slug = '', orderId = '' } = useParams();
-  const { data: merchant } = useMerchantBySlug(slug);
-  const { data: order } = useOrder(orderId);
-  const { data: payment } = usePaymentByOrder(orderId);
-  const [paymentStatus, setPaymentStatus] = useState<'processing' | 'success'>('processing');
+  const [searchParams] = useSearchParams();
+  const accessToken = searchParams.get('access') || '';
+  const { data: merchant, isError: merchantError } = useMerchantBySlug(slug);
+  const [paymentStatus, setPaymentStatus] = useState<'processing' | 'success' | 'failed'>('processing');
+  const shouldPoll = paymentStatus === 'processing';
+  const { data: order, isError: orderError } = useStorefrontOrder(slug, orderId, accessToken, {
+    refetchInterval: shouldPoll ? 1_000 : false,
+  });
+  const { data: payment, isError: paymentError } = useStorefrontPayment(slug, orderId, accessToken, {
+    refetchInterval: shouldPoll ? 1_000 : false,
+  });
 
   useEffect(() => {
-    let active = true;
+    if (!order || !payment) return;
 
-    const simulate = async () => {
-      if (!merchant || !order || !payment) return;
-      if (payment.status === 'success' && order.status === 'paid') {
-        setPaymentStatus('success');
-        return;
-      }
-
-      await wait(3000);
-      if (!active) return;
-
-      await apiClient.entities.Order.update(order.id, { status: 'paid' });
-      await apiClient.entities.Payment.update(payment.id, {
-        status: 'success',
-        telebirr_txn_id: payment.telebirr_txn_id || `TB-${Date.now()}`,
-        callback_payload: '{"status":"success","provider":"telebirr-demo"}',
+    if (payment.status === 'success' && order.status === 'paid') {
+      setPaymentStatus((current) => {
+        if (current !== 'success') {
+          confetti({
+            particleCount: 140,
+            spread: 80,
+            origin: { y: 0.65 },
+          });
+        }
+        return 'success';
       });
+      return;
+    }
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['order', order.id] }),
-        queryClient.invalidateQueries({ queryKey: ['orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['payment', order.id] }),
-        queryClient.invalidateQueries({ queryKey: ['products', merchant.id] }),
-      ]);
+    if (payment.status === 'failed' || order.status === 'cancelled') {
+      setPaymentStatus('failed');
+      return;
+    }
 
-      setPaymentStatus('success');
-      confetti({
-        particleCount: 140,
-        spread: 80,
-        origin: { y: 0.65 },
-      });
-    };
+    setPaymentStatus('processing');
+  }, [order, payment]);
 
-    void simulate();
+  if (!accessToken) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
+        <Card className="w-full max-w-xl p-8 text-center sm:p-10">
+          <h1 className="text-3xl font-bold text-slate-900">Payment session not available</h1>
+          <p className="mt-3 text-sm leading-7 text-slate-500">
+            This confirmation link is missing its access token. Return to the storefront and restart checkout if you still need to complete the order.
+          </p>
+          <div className="mt-8">
+            <Button asChild className="w-full" variant="primary" size="lg">
+              <Link to={`/s/${slug}`}>Back to Store</Link>
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
-    return () => {
-      active = false;
-    };
-  }, [merchant, order, payment]);
+  if (merchantError || orderError || paymentError) {
+    return (
+      <div className="container-shell py-16">
+        <EmptyState icon={ShieldAlert} title="Payment status unavailable" description="We could not verify this payment session right now. Reopen the link in a moment or return to the storefront." />
+      </div>
+    );
+  }
 
   if (!merchant || !order) return null;
 
@@ -70,10 +86,25 @@ export default function PaymentSuccessPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
                 <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand-600" />
               </div>
-              <h1 className="mt-6 text-3xl font-bold text-slate-900">Waiting for Telebirr confirmation...</h1>
+              <h1 className="mt-6 text-3xl font-bold text-slate-900">Waiting for payment confirmation...</h1>
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                This demo simulates the payment callback locally and updates the order status after a short delay.
+                This staging payment flow is updating now. Keep this page open and the order status will refresh automatically.
               </p>
+            </>
+          ) : paymentStatus === 'failed' ? (
+            <>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-700">
+                <span className="text-3xl">!</span>
+              </div>
+              <h1 className="mt-6 text-3xl font-bold text-slate-900">Payment could not be confirmed</h1>
+              <p className="mt-3 text-sm leading-7 text-slate-500">
+                We could not confirm this payment yet. Return to the storefront and try checkout again.
+              </p>
+              <div className="mt-8">
+                <Button asChild className="w-full" variant="primary" size="lg">
+                  <Link to={`/s/${slug}`}>Back to Store</Link>
+                </Button>
+              </div>
             </>
           ) : (
             <>
@@ -81,7 +112,7 @@ export default function PaymentSuccessPage() {
                 <span className="text-3xl">✓</span>
               </div>
               <h1 className="mt-6 text-3xl font-bold text-slate-900">Payment successful</h1>
-              <p className="mt-3 text-sm text-slate-500">Order {order.order_number} has been marked as paid.</p>
+              <p className="mt-3 text-sm text-slate-500">Order {order.order_number} is confirmed and marked as paid.</p>
               <div className="mt-6 rounded-2xl bg-slate-50 p-5 text-left">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Total amount</span>
@@ -92,8 +123,8 @@ export default function PaymentSuccessPage() {
                   <span className="font-medium text-slate-900">{merchant.business_name}</span>
                 </div>
                 <div className="mt-3 flex justify-between text-sm">
-                  <span className="text-slate-500">Telebirr ref</span>
-                  <span className="font-medium text-slate-900">{payment?.telebirr_txn_id || 'Generated in demo flow'}</span>
+                  <span className="text-slate-500">Payment ref</span>
+                  <span className="font-medium text-slate-900">{payment?.telebirr_txn_id || 'Reference pending'}</span>
                 </div>
               </div>
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -101,7 +132,7 @@ export default function PaymentSuccessPage() {
                   <Link to={`/s/${slug}`}>Back to Store</Link>
                 </Button>
                 <Button asChild className="w-full" variant="primary" size="lg">
-                <Link to={`/s/${slug}`}>Continue Shopping</Link>
+                  <Link to={`/s/${slug}`}>Continue Shopping</Link>
                 </Button>
               </div>
             </>

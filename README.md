@@ -9,7 +9,7 @@
 - **Storefront:** Beautiful, responsive shopping experience for customers to browse and purchase products.
 - **Merchant Dashboard:** Full-featured control panel for managing inventory, tracking orders, and configuring store settings.
 - **Secure Authentication:** Robust JWT-based authentication with bcrypt password hashing.
-- **Robust Database:** Powered by Prisma ORM with SQLite for local development (easily scalable to PostgreSQL).
+- **Robust Database:** Powered by Prisma ORM with PostgreSQL and Prisma migrations.
 - **Payment Integration:** Built-in demo payment gateway (Telebirr simulation) for seamless checkout testing.
 - **Media Handling:** Local disk image uploads powered by Multer.
 
@@ -17,7 +17,11 @@
 
 - **Frontend:** React, Vite, Tailwind CSS, TypeScript, React Router, React Query
 - **Backend:** Node.js, Express, Prisma, JWT, Multer
-- **Database:** SQLite (Development) / PostgreSQL (Production ready)
+- **Database:** PostgreSQL with Prisma ORM and migrations
+
+## Deployment Prep
+
+Deployment guidance now lives in [docs/deployment.md](/Users/dagemamogne/Downloads/Seranet/docs/deployment.md). It includes the recommended production architecture, required env vars, migration and seed rehearsal steps, file storage considerations, build/start commands, and the production readiness checklist.
 
 ## 🚀 Getting Started
 
@@ -36,16 +40,19 @@
    ```bash
    cp .env.example .env
    ```
-3. Update `.env` with your settings (defaults are fine for local development):
+3. Update `.env` with your settings:
    ```env
-   DATABASE_URL="file:./dev.db"
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/seranet?schema=public"
    JWT_SECRET="your-super-secret-jwt-key"
+   PORT="4000"
+   CORS_ORIGIN="http://localhost:5173"
    ```
 4. Install dependencies and initialize the database:
    ```bash
    npm install
    npm run prisma:generate
-   npx prisma db push
+   npm run prisma:migrate
+   npm run prisma:seed
    ```
 5. Start the API server:
    ```bash
@@ -62,7 +69,7 @@
    ```
 3. Create a `.env` file in the root directory:
    ```env
-   VITE_API_URL="http://localhost:4000"
+   VITE_API_BASE_URL="http://localhost:4000/api"
    ```
 4. Start the frontend development server:
    ```bash
@@ -73,7 +80,7 @@
 ## ✅ Quality Checks
 
 - Root: `npm run lint`, `npm run typecheck`, `npm run build`, `npm test`
-- Backend: `npm run prisma:generate`, `npm run build`, `npm test`
+- Backend: `npm run prisma:generate`, `npm run prisma:migrate:deploy`, `npm run build`, `npm test`
 
 ## 🔌 API Documentation
 

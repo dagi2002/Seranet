@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import { testDatabasePath } from './test-db';
+import { testDatabasePath } from './test-db.js';
 
 export default function globalSetup() {
   fs.rmSync(testDatabasePath, { force: true });

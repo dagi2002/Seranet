@@ -11,14 +11,14 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductForm } from '@/features/products/components/product-form';
-import { useCurrentMerchant, useProductsByMerchant } from '@/hooks/queries';
+import { useCurrentMerchant, useCurrentMerchantProducts } from '@/hooks/queries';
 import type { Product } from '@/types/seranet';
 import { formatCurrency } from '@/utils';
 
 export default function ProductsPage() {
   const queryClient = useQueryClient();
   const { data: merchant } = useCurrentMerchant();
-  const { data: products = [], isLoading } = useProductsByMerchant(merchant?.id);
+  const { data: products = [], isLoading } = useCurrentMerchantProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -31,10 +31,10 @@ export default function ProductsPage() {
   const lowStockCount = products.filter((product) => product.stock_quantity > 0 && product.stock_quantity <= 5).length;
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiClient.entities.Product.remove(id),
+    mutationFn: (id: string) => apiClient.products.remove(id),
     onSuccess: () => {
       toast.success('Product removed');
-      queryClient.invalidateQueries({ queryKey: ['products', merchant?.id] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-products'] });
     },
   });
 
@@ -45,7 +45,7 @@ export default function ProductsPage() {
       <PageHeader
         eyebrow="Catalog"
         title="Products"
-        description="Manage the storefront assortment with reusable product forms, media uploads, and simple state controls."
+        description="Manage pricing, stock, visibility, and product media from one clean catalog workspace."
         actions={
           <Button
             variant="primary"
@@ -136,13 +136,13 @@ export default function ProductsPage() {
         <EmptyState
           icon={PackageSearch}
           title="No products found"
-          description="Add your first product or adjust the search query."
+          description="Add your first product or refine the search to find catalog items faster."
           actionLabel="Create product"
           onAction={() => setShowForm(true)}
         />
       )}
 
-      <ProductForm merchantId={merchant.id} open={showForm} onOpenChange={setShowForm} product={editingProduct} />
+      <ProductForm open={showForm} onOpenChange={setShowForm} product={editingProduct} />
     </div>
   );
 }

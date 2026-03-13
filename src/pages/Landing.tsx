@@ -11,32 +11,56 @@ import {
   ShoppingCart,
   Store,
 } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/auth';
 
 const features = [
   { icon: Store, title: 'Launch fast', description: 'Set up your storefront, products, and merchant profile in minutes.' },
-  { icon: CreditCard, title: 'Telebirr-first checkout', description: 'Keep a familiar payment experience tailored to Ethiopian shoppers.' },
+  { icon: CreditCard, title: 'Telebirr-style checkout', description: 'Offer a payment experience that feels familiar to Ethiopian shoppers.' },
   { icon: Palette, title: 'Storefront branding', description: 'Primary color, banners, and imagery shape each merchant storefront.' },
   { icon: ShoppingCart, title: 'Cart persistence', description: 'Customers can browse, return later, and keep their cart by store.' },
-  { icon: Package2, title: 'Product control', description: 'Manage stock, visibility, categories, and media from a cleaner dashboard.' },
-  { icon: ShieldCheck, title: 'Backend-ready architecture', description: 'Mock services now, swappable production APIs later.' },
+  { icon: Package2, title: 'Product control', description: 'Manage stock, visibility, categories, and media from one merchant workspace.' },
+  { icon: ShieldCheck, title: 'Operational visibility', description: 'Track orders, payments, and store performance from a reliable daily control panel.' },
 ];
 
 const stats = [
   { label: 'Merchants onboarded', value: '180+' },
   { label: 'Avg. setup time', value: '9 min' },
-  { label: 'Telebirr-ready flow', value: 'MVP' },
-  { label: 'Store themes supported', value: 'Custom' },
+  { label: 'Checkout experience', value: 'Localized' },
+  { label: 'Store branding', value: 'Custom' },
 ];
 
-const heroHighlights = ['Familiar Telebirr checkout cues', 'Storefront and dashboard parity', 'Mock backend ready for phase 2'];
+const heroHighlights = ['Telebirr-style checkout', 'Merchant dashboard + storefront', 'Built for Ethiopian SMB operations'];
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { restoreDemo } = useAuth();
+  const { login } = useAuth();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      await login({ email: email.trim().toLowerCase(), password });
+      setLoginOpen(false);
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not log in');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -59,8 +83,8 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={async () => { await restoreDemo(); navigate('/dashboard'); }}>
-              Demo Dashboard
+            <Button variant="ghost" onClick={() => setLoginOpen(true)}>
+              Merchant Login
             </Button>
             <Button asChild variant="primary">
               <Link to="/onboarding">Start Selling</Link>
@@ -88,7 +112,7 @@ export default function LandingPage() {
                 transition={{ delay: 0.05 }}
                 className="mt-6 text-5xl font-extrabold leading-tight tracking-tight text-slate-950 text-balance sm:text-6xl"
               >
-                Rebuild your storefront with a sharper dashboard and the same Base44 feel.
+                Launch a professional online store built for Ethiopian commerce.
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 24 }}
@@ -96,8 +120,8 @@ export default function LandingPage() {
                 transition={{ delay: 0.1 }}
                 className="mt-6 max-w-xl text-lg leading-8 text-slate-600"
               >
-                Seranet gives merchants a polished storefront, product control, order visibility, and a Telebirr-inspired checkout
-                flow that feels local from day one.
+                Seranet gives Ethiopian SMBs a polished storefront, strong brand presentation, order visibility, and a checkout
+                journey shaped around local customer expectations.
               </motion.p>
               <motion.div
                 initial={{ opacity: 0, y: 24 }}
@@ -112,7 +136,7 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline">
-                  <Link to="/s/addis-market-studio">View Demo Store</Link>
+                  <Link to="/s/addis-market-studio">Preview Storefront</Link>
                 </Button>
               </motion.div>
               <div className="mt-10 grid gap-3 sm:grid-cols-2">
@@ -141,7 +165,7 @@ export default function LandingPage() {
               >
                 <div className="h-36 rounded-[1.5rem] bg-gradient-to-br from-brand-100 via-white to-emerald-100" />
                 <p className="mt-4 text-sm font-semibold text-slate-900">Storefront hero</p>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Banner-driven, mobile-first, Ethiopian brand palette.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Banner-led, mobile-first storefronts designed for modern Ethiopian brands.</p>
               </motion.div>
               <motion.div
                 className="absolute right-0 top-12 w-full max-w-[22rem] rounded-[2rem] bg-slate-900 p-5 text-white shadow-2xl"
@@ -149,8 +173,8 @@ export default function LandingPage() {
                 transition={{ repeat: Infinity, duration: 7 }}
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-300">Merchant Dashboard</p>
-                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-300">Live demo</span>
+                  <p className="text-sm text-slate-300">Merchant Workspace</p>
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-300">Seranet</span>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-2xl bg-white/10 p-4">
@@ -163,7 +187,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="mt-4 rounded-2xl bg-white/10 p-4">
-                  <p className="text-sm font-medium">Telebirr simulation</p>
+                  <p className="text-sm font-medium">Telebirr-style payment flow</p>
                   <div className="mt-3 h-2 rounded-full bg-white/10">
                     <div className="h-2 w-2/3 rounded-full bg-emerald-400" />
                   </div>
@@ -184,7 +208,7 @@ export default function LandingPage() {
                   <p className="text-sm font-semibold text-slate-900">Cart + checkout</p>
                   <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">ETB ready</span>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Persistent cart, customer info capture, payment feedback.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Persistent cart, customer details, and clear payment feedback for every order.</p>
                 <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
                   <span className="text-sm text-slate-500">Order total</span>
                   <span className="text-sm font-bold text-slate-900">ETB 5,150</span>
@@ -208,7 +232,7 @@ export default function LandingPage() {
         <section id="features" className="container-shell py-14">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-600">Features</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight">A cleaner codebase without losing the original UX rhythm.</h2>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight">Everything merchants need to launch, sell, and operate online.</h2>
           </div>
           <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {features.map((feature, index) => (
@@ -232,16 +256,16 @@ export default function LandingPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-300">Why Seranet</p>
               <h3 className="mt-3 text-3xl font-bold">Merchants need software that feels local, not generic.</h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                The storefront, order flow, and payment simulation all stay rooted in Ethiopian business context, with Telebirr-inspired
-                cues and practical merchant operations.
+                Seranet keeps the storefront, checkout flow, and merchant operations rooted in Ethiopian business context, with
+                Telebirr familiarity and practical day-to-day workflows.
               </p>
             </Card>
             <div className="grid gap-6 sm:grid-cols-2">
               {[
-                ['Frontend-first rebuild', 'Preserves Base44 page flow and frontend personality before phase 2 backend work.'],
-                ['Reusable service contracts', 'Pages talk to one mock API surface so real APIs can replace it cleanly later.'],
-                ['Responsive structure', 'Mobile drawer, adaptive product grids, floating cart actions, and storefront-first browsing.'],
-                ['Polished demo data', 'Seeded merchant, products, orders, and payments make the app presentable immediately.'],
+                ['Merchant-ready operations', 'Orders, catalog updates, branding controls, and storefront visibility live in one streamlined workspace.'],
+                ['Unified commerce flow', 'Storefront browsing, cart activity, checkout, and merchant actions stay aligned across the product.'],
+                ['Responsive storefronts', 'Mobile-first browsing, adaptive product grids, and quick cart access keep shopping easy on every screen.'],
+                ['Brand-forward presentation', 'Store colors, banners, and product imagery help each business look established from day one.'],
               ].map(([title, description]) => (
                 <Card key={title} className="p-6 transition-transform duration-300 hover:-translate-y-1">
                   <h4 className="font-semibold text-slate-900">{title}</h4>
@@ -256,10 +280,10 @@ export default function LandingPage() {
           <div className="rounded-[2rem] bg-gradient-to-r from-brand-600 via-teal-700 to-emerald-600 p-8 text-white shadow-lift md:p-12">
             <div className="max-w-2xl">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/80">Launch your store</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight">Recreate the Base44 storefront feel, then plug in the real backend in phase 2.</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight">Launch your Seranet storefront with confidence.</h2>
               <p className="mt-4 text-sm leading-7 text-white/80">
-                Start with the merchant onboarding flow, explore the demo dashboard, and confirm the storefront quality locally before
-                production APIs land.
+                Set up your merchant profile, shape your storefront, and manage orders from one polished commerce platform built for
+                Ethiopian businesses.
               </p>
             </div>
             <div className="mt-8 flex flex-wrap gap-4">
@@ -268,7 +292,7 @@ export default function LandingPage() {
               </Button>
               <Button asChild size="lg" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
                 <Link to="/s/addis-market-studio">
-                  Preview Demo Store
+                  Preview Storefront
                   <MoveRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -282,10 +306,49 @@ export default function LandingPage() {
           <p className="font-medium text-slate-700">Seranet</p>
           <div className="flex items-center gap-3">
             <LayoutDashboard className="h-4 w-4" />
-            <span>Frontend rebuild phase 1</span>
+            <span>Commerce platform for Ethiopian SMBs</span>
           </div>
         </div>
       </footer>
+
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Merchant Login</DialogTitle>
+            <DialogDescription>Use your Seranet merchant account to continue to the dashboard.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleLogin}>
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <Input
+                id="login-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="merchant@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Password</Label>
+              <Input
+                id="login-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setLoginOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={isSubmitting}>
+                Sign In
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

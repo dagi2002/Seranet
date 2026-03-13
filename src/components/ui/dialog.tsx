@@ -8,17 +8,26 @@ const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
-const DialogOverlay = ({ className, ...props }: DialogPrimitive.DialogOverlayProps) => (
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  DialogPrimitive.DialogOverlayProps
+>(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
+    ref={ref}
     className={cn('fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm', className)}
     {...props}
   />
-);
+));
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const DialogContent = ({ className, children, ...props }: DialogPrimitive.DialogContentProps) => (
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  DialogPrimitive.DialogContentProps
+>(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
+      ref={ref}
       className={cn(
         'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-[0_30px_90px_-42px_rgba(15,23,42,0.42)] backdrop-blur-xl',
         className,
@@ -31,7 +40,8 @@ const DialogContent = ({ className, children, ...props }: DialogPrimitive.Dialog
       </DialogClose>
     </DialogPrimitive.Content>
   </DialogPortal>
-);
+));
+DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn('mb-4 flex flex-col gap-1', className)} {...props} />
