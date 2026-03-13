@@ -11,7 +11,7 @@ import {
   ShoppingCart,
   Store,
 } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,13 @@ export default function LandingPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!loginOpen) {
+      setPassword('');
+      setIsSubmitting(false);
+    }
+  }, [loginOpen]);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -323,6 +330,8 @@ export default function LandingPage() {
               <Input
                 id="login-email"
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="merchant@example.com"
@@ -333,6 +342,8 @@ export default function LandingPage() {
               <Input
                 id="login-password"
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••"

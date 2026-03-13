@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { asyncHandler } from '../lib/async-handler.js';
 import { authenticate } from '../middleware/auth.js';
-import { imageUpload, persistUploadedImage } from '../lib/uploads.js';
+import { imageUpload, toUploadUrl } from '../lib/uploads.js';
 
 const router = Router();
 
@@ -14,8 +14,7 @@ function sendFile(fieldName: 'image') {
         return;
       }
 
-      const fileUrl = await persistUploadedImage(req.file);
-      res.status(201).json({ file_url: fileUrl });
+      res.status(201).json({ file_url: toUploadUrl(req.file.filename) });
     }),
   ];
 }
