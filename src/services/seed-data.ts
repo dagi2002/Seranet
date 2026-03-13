@@ -41,6 +41,9 @@ export const demoProducts: Product[] = [
     stock_quantity: 12,
     image_url:
       'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80',
+    image_urls: [
+      'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80',
+    ],
     category: 'home',
     is_active: true,
   },
@@ -55,6 +58,9 @@ export const demoProducts: Product[] = [
     stock_quantity: 24,
     image_url:
       'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
+    image_urls: [
+      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
+    ],
     category: 'electronics',
     is_active: true,
   },
@@ -69,6 +75,9 @@ export const demoProducts: Product[] = [
     stock_quantity: 0,
     image_url:
       'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=1200&q=80',
+    image_urls: [
+      'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=1200&q=80',
+    ],
     category: 'food',
     is_active: true,
   },
@@ -83,6 +92,9 @@ export const demoProducts: Product[] = [
     stock_quantity: 17,
     image_url:
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80',
+    image_urls: [
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80',
+    ],
     category: 'clothing',
     is_active: true,
   },
@@ -97,6 +109,9 @@ export const demoProducts: Product[] = [
     stock_quantity: 46,
     image_url:
       'https://images.unsplash.com/photo-1601612628452-9e99ced43524?auto=format&fit=crop&w=1200&q=80',
+    image_urls: [
+      'https://images.unsplash.com/photo-1601612628452-9e99ced43524?auto=format&fit=crop&w=1200&q=80',
+    ],
     category: 'beauty',
     is_active: true,
   },
@@ -111,6 +126,9 @@ export const demoProducts: Product[] = [
     stock_quantity: 8,
     image_url:
       'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=1200&q=80',
+    image_urls: [
+      'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=1200&q=80',
+    ],
     category: 'sports',
     is_active: true,
   },

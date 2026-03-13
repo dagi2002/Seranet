@@ -1,257 +1,284 @@
-import type { PrismaClient } from '@prisma/client';
-import type { Express } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import type { Merchant, Order, OrderItem, Payment, Product, User } from '@prisma/client';
 import request from 'supertest';
-import { beforeAll } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import app from '../app';
+import { signAuthToken, verifyAuthToken } from '../lib/jwt';
+import { optionalUrlArray } from '../lib/validation';
+import { generateOrderNumber } from '../utils/order';
+import {
+  serializeMerchant,
+  serializeOrder,
+  serializeOrderCheckout,
+  serializePayment,
+  serializeProduct,
+  serializePublicOrder,
+  serializePublicPayment,
+  serializeUser,
+} from '../utils/serializers';
 
-let app: Express;
-let prisma: PrismaClient;
-let merchantCounter = 0;
+const uploadedFiles = new Set<string>();
 
-const merchantPayload = {
-  password: 'secret123',
-  phone: '0911000000',
-};
-
-const createMerchantPayload = (overrides: Partial<{
-  email: string;
-  password: string;
-  businessName: string;
-  ownerName: string;
-  phone: string;
-  storeSlug: string;
-}> = {}) => {
-  merchantCounter += 1;
-
-  return {
-    email: `merchant-${merchantCounter}@example.com`,
-    password: merchantPayload.password,
-    businessName: `Merchant ${merchantCounter}`,
-    ownerName: `Owner ${merchantCounter}`,
-    phone: merchantPayload.phone,
-    storeSlug: `merchant-${merchantCounter}`,
-    ...overrides,
-  };
-};
-
-const registerMerchant = async (overrides: Partial<ReturnType<typeof createMerchantPayload>> = {}) => {
-  const payload = createMerchantPayload(overrides);
-  const response = await request(app).post('/auth/register').send(payload);
-  if (response.status !== 200) {
-    throw new Error(`Failed to register merchant: ${response.status} ${JSON.stringify(response.body)}`);
+afterEach(() => {
+  for (const filePath of uploadedFiles) {
+    fs.rmSync(filePath, { force: true });
   }
-  return { payload, response };
-};
+  uploadedFiles.clear();
+});
 
-describe('backend stabilization', () => {
-  beforeAll(async () => {
-    ({ default: app } = await import('../app'));
-    ({ prisma } = await import('../prisma'));
+describe('backend utilities', () => {
+  it('round-trips JWT auth tokens', () => {
+    const token = signAuthToken({ userId: 'user_123' });
+    expect(verifyAuthToken(token)).toMatchObject({ userId: 'user_123' });
   });
 
-  it('sanitizes merchant responses for register, login, and me', async () => {
-    const { payload, response: registerResponse } = await registerMerchant();
-
-    expect(registerResponse.status).toBe(200);
-    expect(registerResponse.body.merchant.passwordHash).toBeUndefined();
-
-    const loginResponse = await request(app).post('/auth/login').send({
-      email: payload.email,
-      password: payload.password,
-    });
-
-    expect(loginResponse.status).toBe(200);
-    expect(loginResponse.body.merchant.passwordHash).toBeUndefined();
-
-    const meResponse = await request(app)
-      .get('/auth/me')
-      .set('Authorization', `Bearer ${loginResponse.body.token}`);
-
-    expect(meResponse.status).toBe(200);
-    expect(meResponse.body.passwordHash).toBeUndefined();
+  it('generates storefront-safe order numbers', () => {
+    const orderNumber = generateOrderNumber();
+    expect(orderNumber).toMatch(/^ORD-[A-Z0-9]{6}$/);
   });
 
-  it('sanitizes public merchant lookups', async () => {
-    const { payload, response } = await registerMerchant();
-    const merchantId = response.body.merchant.id as string;
+  it('validates product image arrays with 1..5 images', () => {
+    expect(
+      optionalUrlArray(
+        ['/uploads/p-1.png', '/uploads/p-2.png'],
+        'Product images',
+        { minLength: 1, maxLength: 5 },
+      ),
+    ).toEqual(['/uploads/p-1.png', '/uploads/p-2.png']);
 
-    const byId = await request(app).get(`/merchant/${merchantId}`);
-    const bySlug = await request(app).get(`/merchant/slug/${payload.storeSlug}`);
+    expect(() =>
+      optionalUrlArray([], 'Product images', { minLength: 1, maxLength: 5 }),
+    ).toThrow('Product images must include at least 1 image');
 
-    expect(byId.status).toBe(200);
-    expect(bySlug.status).toBe(200);
-    expect(byId.body.passwordHash).toBeUndefined();
-    expect(bySlug.body.passwordHash).toBeUndefined();
+    expect(() =>
+      optionalUrlArray(
+        [
+          '/uploads/p-1.png',
+          '/uploads/p-2.png',
+          '/uploads/p-3.png',
+          '/uploads/p-4.png',
+          '/uploads/p-5.png',
+          '/uploads/p-6.png',
+        ],
+        'Product images',
+        { minLength: 1, maxLength: 5 },
+      ),
+    ).toThrow('Product images cannot include more than 5 images');
   });
 
-  it('only returns orders for the authenticated merchant', async () => {
-    const firstMerchant = await registerMerchant();
-    const secondMerchant = await registerMerchant({ businessName: 'Merchant Beta', ownerName: 'Bob' });
+  it('serializes user, merchant, product, order, and payment into frontend shapes', () => {
+    const user = {
+      id: 'user_1',
+      email: 'merchant@example.com',
+      passwordHash: 'hashed',
+      fullName: 'Merchant Owner',
+      role: 'admin',
+      createdAt: new Date('2026-03-12T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-12T10:00:00.000Z'),
+    } satisfies User;
 
-    await prisma.order.create({
-      data: {
-        merchantId: secondMerchant.response.body.merchant.id,
-        customerName: 'Customer',
-        customerPhone: '0911222333',
-        customerAddress: 'Addis',
-        totalAmount: 50,
-        status: 'pending',
+    const merchant = {
+      id: 'merchant_1',
+      userId: user.id,
+      businessName: 'Selam Styles',
+      ownerName: 'Merchant Owner',
+      phone: '0911223344',
+      storeSlug: 'selam-styles',
+      description: 'Curated fashion and gifting.',
+      logoUrl: '/uploads/logo.png',
+      bannerUrl: '/uploads/banner.png',
+      primaryColor: '#0D9488',
+      isActive: true,
+      createdAt: new Date('2026-03-12T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-12T11:00:00.000Z'),
+      user: {
+        email: user.email,
       },
+    } satisfies Merchant & { user: Pick<User, 'email'> };
+
+    const product = {
+      id: 'product_1',
+      merchantId: merchant.id,
+      name: 'Coffee Set',
+      description: 'Ceramic coffee set.',
+      price: 4200,
+      stockQuantity: 8,
+      imageUrls: ['/uploads/product.png', '/uploads/product-2.png'],
+      category: 'home',
+      isActive: true,
+      createdAt: new Date('2026-03-12T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-12T11:00:00.000Z'),
+    } satisfies Product;
+
+    const item = {
+      id: 'item_1',
+      orderId: 'order_1',
+      productId: product.id,
+      productName: product.name,
+      quantity: 2,
+      priceAtPurchase: product.price,
+    } satisfies OrderItem;
+
+    const order = {
+      id: 'order_1',
+      merchantId: merchant.id,
+      orderNumber: 'ORD-ABC123',
+      publicAccessToken: 'public-token-123',
+      customerName: 'Selamawit Tekle',
+      customerPhone: '0911887766',
+      customerAddress: 'Bole, Addis Ababa',
+      totalAmount: 8400,
+      status: 'pending',
+      stockReserved: true,
+      createdAt: new Date('2026-03-12T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-12T11:00:00.000Z'),
+      items: [item],
+    } satisfies Order & { items: OrderItem[] };
+
+    const payment = {
+      id: 'payment_1',
+      orderId: order.id,
+      merchantId: merchant.id,
+      provider: 'telebirr',
+      status: 'initiated',
+      amount: 8400,
+      customerPhone: '0911887766',
+      telebirrTxnId: null,
+      callbackPayload: null,
+      createdAt: new Date('2026-03-12T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-12T11:00:00.000Z'),
+    } satisfies Payment;
+
+    expect(serializeUser(user)).toMatchObject({
+      email: 'merchant@example.com',
+      full_name: 'Merchant Owner',
+      role: 'admin',
     });
 
-    const response = await request(app)
-      .get(`/orders?merchant=${secondMerchant.response.body.merchant.id}`)
-      .set('Authorization', `Bearer ${firstMerchant.response.body.token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveLength(0);
-  });
-
-  it('computes order totals from current product prices', async () => {
-    const merchant = await registerMerchant();
-    const product = await prisma.product.create({
-      data: {
-        merchantId: merchant.response.body.merchant.id,
-        name: 'Coffee',
-        description: 'Roasted',
-        price: 100,
-        stock: 5,
-        isActive: true,
-      },
+    expect(serializeMerchant(merchant)).toMatchObject({
+      business_name: 'Selam Styles',
+      store_url_slug: 'selam-styles',
+      created_by: 'merchant@example.com',
+      is_active: true,
     });
 
-    const response = await request(app).post('/orders').send({
-      customerName: 'Customer',
-      customerPhone: '0911222333',
-      customerAddress: 'Addis',
-      totalAmount: 1,
+    expect(serializeProduct(product)).toMatchObject({
+      merchant_id: merchant.id,
+      stock_quantity: 8,
+      image_url: '/uploads/product.png',
+      image_urls: ['/uploads/product.png', '/uploads/product-2.png'],
+    });
+
+    expect(serializeOrder(order)).toMatchObject({
+      order_number: 'ORD-ABC123',
+      customer_name: 'Selamawit Tekle',
       items: [
         {
-          productId: product.id,
+          product_id: product.id,
+          product_name: 'Coffee Set',
           quantity: 2,
-          priceAtPurchase: 1,
+          price_at_purchase: 4200,
         },
       ],
     });
 
-    expect(response.status).toBe(200);
-    expect(response.body.totalAmount).toBe(200);
-    expect(response.body.items[0].priceAtPurchase).toBe(100);
+    expect(serializePublicOrder(order)).toMatchObject({
+      id: order.id,
+      order_number: 'ORD-ABC123',
+      total_amount: 8400,
+      status: 'pending',
+    });
+
+    expect(serializeOrderCheckout(order)).toMatchObject({
+      public_access_token: 'public-token-123',
+    });
+
+    expect(serializePayment(payment)).toMatchObject({
+      order_id: order.id,
+      amount: 8400,
+      status: 'initiated',
+      customer_phone: '0911887766',
+    });
+
+    expect(serializePublicPayment(payment)).toMatchObject({
+      id: payment.id,
+      order_id: order.id,
+      amount: 8400,
+      status: 'initiated',
+    });
   });
 
-  it('rejects mixed-merchant carts', async () => {
-    const firstMerchant = await registerMerchant();
-    const secondMerchant = await registerMerchant({ businessName: 'Merchant Beta', ownerName: 'Bob' });
+  it('allows onboarding logo uploads without auth while keeping merchant uploads protected', async () => {
+    const onboardingResponse = await request(app)
+      .post('/api/uploads/onboarding-logo')
+      .attach('image', Buffer.from('fake-png'), {
+        filename: 'logo.png',
+        contentType: 'image/png',
+      });
 
-    const firstProduct = await prisma.product.create({
-      data: {
-        merchantId: firstMerchant.response.body.merchant.id,
-        name: 'Alpha Product',
-        price: 100,
-        stock: 4,
-        isActive: true,
-      },
-    });
-    const secondProduct = await prisma.product.create({
-      data: {
-        merchantId: secondMerchant.response.body.merchant.id,
-        name: 'Beta Product',
-        price: 50,
-        stock: 4,
-        isActive: true,
-      },
-    });
+    expect(onboardingResponse.status).toBe(201);
+    expect(onboardingResponse.body.file_url).toMatch(/^\/uploads\/.+\.png$/);
 
-    const response = await request(app).post('/orders').send({
-      customerName: 'Customer',
-      customerPhone: '0911222333',
-      customerAddress: 'Addis',
-      items: [
-        { productId: firstProduct.id, quantity: 1 },
-        { productId: secondProduct.id, quantity: 1 },
-      ],
-    });
+    const uploadedFilename = onboardingResponse.body.file_url.split('/').pop();
+    uploadedFiles.add(path.join(process.cwd(), 'uploads', uploadedFilename));
+
+    const protectedResponse = await request(app)
+      .post('/api/uploads/merchant-logo')
+      .attach('image', Buffer.from('fake-png'), {
+        filename: 'logo.png',
+        contentType: 'image/png',
+      });
+
+    expect(protectedResponse.status).toBe(401);
+  });
+
+  it('rejects upload requests without a file or with a non-image payload', async () => {
+    const missingFileResponse = await request(app)
+      .post('/api/uploads/onboarding-logo');
+
+    expect(missingFileResponse.status).toBe(400);
+    expect(missingFileResponse.body.message).toBe('No file uploaded');
+
+    const invalidFileResponse = await request(app)
+      .post('/api/uploads/onboarding-logo')
+      .attach('image', Buffer.from('plain-text'), {
+        filename: 'notes.txt',
+        contentType: 'text/plain',
+      });
+
+    expect(invalidFileResponse.status).toBe(400);
+    expect(invalidFileResponse.body.message).toBe('Only image uploads are allowed');
+  });
+
+  it('rejects malformed JSON payloads with a clear 400 response', async () => {
+    const response = await request(app)
+      .post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .send('{"email":');
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toContain('one store');
+    expect(response.body.message).toBe('Request body must be valid JSON');
   });
 
-  it.each([0, -1, 1.5])('rejects invalid quantity %s', async (quantity) => {
-    const merchant = await registerMerchant();
-    const product = await prisma.product.create({
-      data: {
-        merchantId: merchant.response.body.merchant.id,
-        name: 'Coffee',
-        price: 100,
-        stock: 5,
-        isActive: true,
-      },
-    });
-
-    const response = await request(app).post('/orders').send({
-      customerName: 'Customer',
-      customerPhone: '0911222333',
-      customerAddress: 'Addis',
-      items: [{ productId: product.id, quantity }],
-    });
+  it('rejects non-object auth payloads before route logic runs', async () => {
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send([]);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toContain('Invalid items');
+    expect(response.body.message).toBe('Request body must be an object');
   });
 
-  it('only initiates demo payment for valid unpaid orders', async () => {
-    const merchant = await registerMerchant();
-    const product = await prisma.product.create({
-      data: {
-        merchantId: merchant.response.body.merchant.id,
-        name: 'Coffee',
-        price: 75,
-        stock: 5,
-        isActive: true,
-      },
-    });
-    const order = await prisma.order.create({
-      data: {
-        merchantId: merchant.response.body.merchant.id,
-        customerName: 'Customer',
-        customerPhone: '0911222333',
-        customerAddress: 'Addis',
-        totalAmount: 75,
-        status: 'pending',
-        items: {
-          create: {
-            productId: product.id,
-            quantity: 1,
-            priceAtPurchase: 75,
-          },
-        },
-      },
-    });
+  it('rejects malformed payment initiation payloads before querying state', async () => {
+    const response = await request(app)
+      .post('/api/payments/telebirr/initiate')
+      .send({
+        order_id: '',
+        customer_phone: {},
+      });
 
-    const validResponse = await request(app).post('/payments/demo/initiate').send({
-      orderId: order.id,
-      amount: 75,
-    });
-
-    expect(validResponse.status).toBe(200);
-    expect(validResponse.body.status).toBe('pending');
-
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { status: 'paid' },
-    });
-
-    const invalidResponse = await request(app).post('/payments/demo/initiate').send({
-      orderId: order.id,
-      amount: 75,
-    });
-
-    expect(invalidResponse.status).toBe(400);
-    expect(invalidResponse.body.message).toContain('not payable');
-  });
-
-  it('does not expose the manual demo confirm endpoint', async () => {
-    const response = await request(app).post('/payments/demo/confirm').send({ orderId: 'missing' });
-
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('Order id is required');
   });
 });

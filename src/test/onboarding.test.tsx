@@ -21,6 +21,9 @@ describe('onboarding flow', () => {
 
     fireEvent.change(screen.getByPlaceholderText('Abeba Home Goods'), { target: { value: 'Selam Styles' } });
     fireEvent.change(screen.getByPlaceholderText('Abeba Bekele'), { target: { value: 'Selam Tesfaye' } });
+    fireEvent.change(screen.getByPlaceholderText('abeba@example.com'), { target: { value: 'selam@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Create a password'), { target: { value: 'strongpass1' } });
+    fireEvent.change(screen.getByPlaceholderText('Repeat password'), { target: { value: 'strongpass1' } });
     fireEvent.change(screen.getByPlaceholderText('0911223344'), { target: { value: '0911445566' } });
     fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
@@ -34,6 +37,7 @@ describe('onboarding flow', () => {
 
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.onboarding) || '{}')).toMatchObject({
       business_name: 'Selam Styles',
+      email: 'selam@example.com',
       store_url_slug: 'selam-styles',
     });
   });

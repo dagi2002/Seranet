@@ -6,13 +6,13 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCurrentMerchant, useOrdersByMerchant, useProductsByMerchant } from '@/hooks/queries';
+import { useCurrentMerchant, useCurrentMerchantOrders, useCurrentMerchantProducts } from '@/hooks/queries';
 import { formatCurrency, formatDateTime } from '@/utils';
 
 export default function DashboardPage() {
   const { data: merchant, isLoading: merchantLoading } = useCurrentMerchant();
-  const { data: products = [], isLoading: productsLoading } = useProductsByMerchant(merchant?.id);
-  const { data: orders = [], isLoading: ordersLoading } = useOrdersByMerchant(merchant?.id);
+  const { data: products = [], isLoading: productsLoading } = useCurrentMerchantProducts();
+  const { data: orders = [], isLoading: ordersLoading } = useCurrentMerchantOrders();
 
   if (merchantLoading) return <DashboardSkeleton />;
 
