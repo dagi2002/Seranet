@@ -13,6 +13,36 @@ import { SectionHeader } from '../../../../src/components/ui/SectionHeader';
 import { StatusBadge } from '../../../../src/components/ui/StatusBadge';
 import { SurfaceCard } from '../../../../src/components/ui/SurfaceCard';
 import { ThemeText } from '../../../../src/components/ui/ThemeText';
+import type { FulfillmentStatus, PaymentProvider } from '../../../../src/types/api';
+
+function isManualPayment(provider?: string) {
+  return provider === 'cash_on_delivery' || provider === 'bank_transfer';
+}
+
+function paymentProviderLabel(provider?: PaymentProvider | string) {
+  switch (provider) {
+    case 'telebirr':
+      return 'Telebirr';
+    case 'cash_on_delivery':
+      return 'Cash on Delivery';
+    case 'bank_transfer':
+      return 'Bank Transfer';
+    default:
+      return 'Unknown';
+  }
+}
+
+const FULFILLMENT_STEPS: Array<{ key: FulfillmentStatus; label: string }> = [
+  { key: 'pending', label: 'Pending' },
+  { key: 'confirmed', label: 'Confirmed' },
+  { key: 'preparing', label: 'Preparing' },
+  { key: 'out_for_delivery', label: 'Out for delivery' },
+  { key: 'delivered', label: 'Delivered' },
+];
+
+function getFulfillmentStepIndex(status: FulfillmentStatus) {
+  return FULFILLMENT_STEPS.findIndex((s) => s.key === status);
+}
 
 export default function OrderStatusScreen() {
   const params = useLocalSearchParams<{ slug: string; orderId: string; accessToken?: string; paymentError?: string }>();
@@ -47,12 +77,25 @@ export default function OrderStatusScreen() {
     );
   }
 
+  const payment = paymentQuery.data;
+  const order = orderQuery.data;
+  const manualPayment = payment ? isManualPayment(payment.provider) : false;
+  const currentFulfillmentIndex = order ? getFulfillmentStepIndex(order.fulfillment_status) : 0;
+
+  // Header text based on payment provider
+  const headerTitle = manualPayment ? 'Order placed' : 'Track payment and fulfillment';
+  const headerDescription = manualPayment
+    ? payment?.provider === 'cash_on_delivery'
+      ? 'Pay cash when your order is delivered.'
+      : 'The merchant will confirm your bank transfer shortly.'
+    : 'Polling for payment and fulfillment updates.';
+
   return (
     <AppScreen scroll scrollContentStyle={{ paddingBottom: 36 }}>
       <SectionHeader
-        description="This screen keeps polling the shared backend until the simulated payment is completed."
+        description={headerDescription}
         eyebrow="Order status"
-        title="Track payment and fulfillment"
+        title={headerTitle}
       />
 
       {paymentError ? (
@@ -64,43 +107,66 @@ export default function OrderStatusScreen() {
         </SurfaceCard>
       ) : null}
 
-      {orderQuery.data ? (
+      {/* Order summary with price breakdown */}
+      {order ? (
         <SurfaceCard style={styles.panel}>
           <View style={styles.panelHeader}>
             <ThemeText variant="sectionTitle">Order summary</ThemeText>
-            <StatusBadge status={orderQuery.data.status} />
+            <StatusBadge status={order.status} />
           </View>
           <View style={styles.infoRow}>
             <ThemeText muted>Order number</ThemeText>
-            <ThemeText variant="bodyStrong">{orderQuery.data.order_number}</ThemeText>
+            <ThemeText variant="bodyStrong">{order.order_number}</ThemeText>
           </View>
           <View style={styles.infoRow}>
+            <ThemeText muted>Product total</ThemeText>
+            <PriceText amount={order.product_total} />
+          </View>
+          {order.delivery_fee > 0 ? (
+            <View style={styles.infoRow}>
+              <ThemeText muted>Delivery fee</ThemeText>
+              <PriceText amount={order.delivery_fee} />
+            </View>
+          ) : null}
+          <View style={styles.infoRow}>
             <ThemeText muted>Total</ThemeText>
-            <PriceText amount={orderQuery.data.total_amount} style={styles.totalValue} />
+            <PriceText amount={order.total_amount} style={styles.totalValue} />
           </View>
         </SurfaceCard>
       ) : orderQuery.error instanceof Error ? (
         <EmptyState iconName="x-circle" title="Order unavailable" description={orderQuery.error.message} />
       ) : null}
 
-      {paymentQuery.data ? (
+      {/* Payment card */}
+      {payment ? (
         <SurfaceCard accent style={styles.panel}>
           <View style={styles.panelHeader}>
             <ThemeText variant="sectionTitle">Payment</ThemeText>
-            <StatusBadge status={paymentQuery.data.status} />
+            <StatusBadge status={payment.status} />
+          </View>
+          <View style={styles.infoRow}>
+            <ThemeText muted>Method</ThemeText>
+            <ThemeText variant="bodyStrong">{paymentProviderLabel(payment.provider)}</ThemeText>
           </View>
           <View style={styles.infoRow}>
             <ThemeText muted>Amount</ThemeText>
-            <PriceText amount={paymentQuery.data.amount} />
+            <PriceText amount={payment.amount} />
           </View>
-          {paymentQuery.data.telebirr_txn_id ? (
+          {payment.telebirr_txn_id ? (
             <View style={styles.infoRow}>
               <ThemeText muted>Telebirr reference</ThemeText>
-              <ThemeText variant="bodyStrong">{paymentQuery.data.telebirr_txn_id}</ThemeText>
+              <ThemeText variant="bodyStrong">{payment.telebirr_txn_id}</ThemeText>
             </View>
-          ) : (
-            <ThemeText muted>Waiting for payment reference...</ThemeText>
-          )}
+          ) : null}
+          {payment.bank_transfer_ref ? (
+            <View style={styles.infoRow}>
+              <ThemeText muted>Transfer ref</ThemeText>
+              <ThemeText variant="bodyStrong">{payment.bank_transfer_ref}</ThemeText>
+            </View>
+          ) : null}
+          {!manualPayment && !payment.telebirr_txn_id ? (
+            <ThemeText muted>Waiting for payment confirmation...</ThemeText>
+          ) : null}
         </SurfaceCard>
       ) : paymentQuery.error instanceof Error ? (
         <SurfaceCard style={styles.panel}>
@@ -111,6 +177,54 @@ export default function OrderStatusScreen() {
           <ThemeText muted>Waiting for payment record...</ThemeText>
         </SurfaceCard>
       )}
+
+      {/* Fulfillment stepper */}
+      {order ? (
+        <SurfaceCard style={styles.panel}>
+          <View style={styles.panelHeader}>
+            <ThemeText variant="sectionTitle">Fulfillment</ThemeText>
+            <StatusBadge status={order.fulfillment_status} />
+          </View>
+          <View style={styles.stepper}>
+            {FULFILLMENT_STEPS.map((step, index) => {
+              const isCompleted = index <= currentFulfillmentIndex;
+              const isCurrent = index === currentFulfillmentIndex;
+              return (
+                <View key={step.key} style={styles.stepItem}>
+                  <View style={styles.stepIndicatorColumn}>
+                    <View
+                      style={[
+                        styles.stepDot,
+                        isCompleted && styles.stepDotCompleted,
+                        isCurrent && styles.stepDotCurrent,
+                      ]}
+                    >
+                      {isCompleted ? (
+                        <FeatherIcon color={colors.white} name="check" size={12} />
+                      ) : null}
+                    </View>
+                    {index < FULFILLMENT_STEPS.length - 1 ? (
+                      <View
+                        style={[
+                          styles.stepLine,
+                          isCompleted && styles.stepLineCompleted,
+                        ]}
+                      />
+                    ) : null}
+                  </View>
+                  <ThemeText
+                    variant={isCurrent ? 'bodyStrong' : 'body'}
+                    color={isCompleted ? colors.text : colors.textSoft}
+                    style={styles.stepLabel}
+                  >
+                    {step.label}
+                  </ThemeText>
+                </View>
+              );
+            })}
+          </View>
+        </SurfaceCard>
+      ) : null}
 
       <Button
         fullWidth
@@ -151,5 +265,47 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     color: colors.brand,
+  },
+  stepper: {
+    gap: 0,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  stepIndicatorColumn: {
+    alignItems: 'center',
+    width: 24,
+  },
+  stepDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.backgroundMuted,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotCompleted: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  stepDotCurrent: {
+    borderColor: colors.brand,
+    borderWidth: 3,
+  },
+  stepLine: {
+    width: 2,
+    height: 20,
+    backgroundColor: colors.border,
+  },
+  stepLineCompleted: {
+    backgroundColor: colors.brand,
+  },
+  stepLabel: {
+    paddingTop: 2,
+    paddingBottom: 12,
   },
 });

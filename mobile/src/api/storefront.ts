@@ -1,6 +1,6 @@
 import { env } from '../config/env';
 import { resolveAssetUrl } from '../lib/asset-url';
-import type { CheckoutOrder, CreateOrderInput, Merchant, Product, PublicOrder, PublicPayment } from '../types/api';
+import type { CheckoutOrder, CreateOrderInput, DeliveryZone, Merchant, Product, PublicOrder, PublicPayment } from '../types/api';
 import { apiRequest } from './client';
 
 function normalizeMerchant(merchant: Merchant) {
@@ -58,5 +58,8 @@ export const storefrontApi = {
     return apiRequest<PublicPayment>(
       `/storefront/${slug}/orders/${orderId}/payment?access_token=${encodeURIComponent(accessToken)}`,
     );
+  },
+  getDeliveryZones(slug: string) {
+    return apiRequest<DeliveryZone[]>(`/storefront/${slug}/delivery-zones`);
   },
 };

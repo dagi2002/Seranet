@@ -26,6 +26,14 @@ export function useProductQuery(slug: string, productId: string) {
   });
 }
 
+export function useDeliveryZonesQuery(slug: string) {
+  return useQuery({
+    queryKey: ['delivery-zones', slug],
+    queryFn: () => storefrontApi.getDeliveryZones(slug),
+    enabled: Boolean(slug),
+  });
+}
+
 export function useCreateOrderMutation(slug: string) {
   return useMutation({
     mutationFn: (payload: CreateOrderInput) => storefrontApi.createOrder(slug, payload),
