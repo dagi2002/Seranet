@@ -31,6 +31,7 @@ async function main() {
   await prisma.payment.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.deliveryZone.deleteMany();
   await prisma.product.deleteMany();
   await prisma.merchant.deleteMany();
   await prisma.user.deleteMany();
@@ -58,8 +59,36 @@ async function main() {
         'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1600&q=80',
       primaryColor: '#0D9488',
       isActive: true,
+      supportPhone: '0911223344',
+      storePolicy: 'We deliver within Addis Ababa. Orders placed before 2 PM are delivered same day.',
+      returnPolicy: 'Returns accepted within 7 days of delivery with original packaging.',
     },
   });
+
+  // Create delivery zones for the demo merchant
+  const zones = await Promise.all([
+    prisma.deliveryZone.create({
+      data: {
+        merchantId: merchant.id,
+        name: 'Bole / CMC',
+        fee: 80,
+      },
+    }),
+    prisma.deliveryZone.create({
+      data: {
+        merchantId: merchant.id,
+        name: 'Piassa / Merkato',
+        fee: 120,
+      },
+    }),
+    prisma.deliveryZone.create({
+      data: {
+        merchantId: merchant.id,
+        name: 'Kazanchis / Mexico',
+        fee: 100,
+      },
+    }),
+  ]);
 
   const products = await Promise.all([
     prisma.product.create({
@@ -155,7 +184,13 @@ async function main() {
       customerName: 'Selamawit Tekle',
       customerPhone: '0911887766',
       customerAddress: 'Bole, Addis Ababa',
-      totalAmount: 4200,
+      productTotal: 4200,
+      deliveryFee: 80,
+      totalAmount: 4280,
+      deliveryZoneId: zones[0]!.id,
+      fulfillmentType: 'delivery',
+      fulfillmentStatus: 'pending',
+      landmarkNote: 'Near Edna Mall, blue gate',
       status: 'pending',
       stockReserved: true,
       items: {
@@ -179,7 +214,12 @@ async function main() {
       customerName: 'Abel Girma',
       customerPhone: '0913002200',
       customerAddress: 'CMC, Addis Ababa',
-      totalAmount: 3160,
+      productTotal: 3160,
+      deliveryFee: 80,
+      totalAmount: 3240,
+      deliveryZoneId: zones[0]!.id,
+      fulfillmentType: 'delivery',
+      fulfillmentStatus: 'confirmed',
       status: 'paid',
       stockReserved: true,
       items: {
@@ -209,7 +249,12 @@ async function main() {
       customerName: 'Rahel Endale',
       customerPhone: '0914557788',
       customerAddress: 'Piassa, Addis Ababa',
-      totalAmount: 2600,
+      productTotal: 2600,
+      deliveryFee: 120,
+      totalAmount: 2720,
+      deliveryZoneId: zones[1]!.id,
+      fulfillmentType: 'delivery',
+      fulfillmentStatus: 'delivered',
       status: 'fulfilled',
       stockReserved: true,
       items: {
@@ -233,7 +278,12 @@ async function main() {
       customerName: 'Meron Hailu',
       customerPhone: '0919331100',
       customerAddress: 'Kazanchis, Addis Ababa',
-      totalAmount: 1450,
+      productTotal: 1450,
+      deliveryFee: 100,
+      totalAmount: 1550,
+      deliveryZoneId: zones[2]!.id,
+      fulfillmentType: 'delivery',
+      fulfillmentStatus: 'pending',
       status: 'cancelled',
       stockReserved: false,
       items: {
