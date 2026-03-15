@@ -157,6 +157,7 @@ export function serializePublicPayment(payment: Payment) {
     order_id: payment.orderId,
     provider: payment.provider,
     telebirr_txn_id: payment.telebirrTxnId ?? undefined,
+    bank_transfer_ref: payment.bankTransferRef ?? undefined,
     amount: payment.amount,
     status: payment.status,
     confirmed_by_merchant_at: payment.confirmedByMerchantAt?.toISOString() ?? undefined,
