@@ -3,10 +3,13 @@ import type {
   AuthResponse,
   AuthUser,
   CheckoutOrder,
+  DeliveryZone,
+  FulfillmentStatus,
   LoginInput,
   Merchant,
   Order,
   Payment,
+  PaymentProvider,
   PublicOrder,
   PublicPayment,
   Product,
@@ -225,12 +228,19 @@ export const apiClient = {
       const product = await request<Product>(`/storefront/${slug}/products/${productId}`);
       return normalizeProduct(product);
     },
+    async getDeliveryZones(slug: string) {
+      return request<DeliveryZone[]>(`/storefront/${slug}/delivery-zones`);
+    },
     async createOrder(
       slug: string,
       payload: {
         customer_name: string;
         customer_phone: string;
         customer_address: string;
+        landmark_note?: string;
+        payment_method: PaymentProvider;
+        delivery_zone_id?: string;
+        bank_transfer_ref?: string;
         items: Array<{ product_id: string; quantity: number }>;
       },
     ) {
@@ -273,6 +283,23 @@ export const apiClient = {
       });
     },
   },
+  deliveryZones: {
+    async listCurrentMerchant() {
+      return request<DeliveryZone[]>('/merchants/me/delivery-zones');
+    },
+    async create(data: { name: string; fee: number }) {
+      return request<DeliveryZone>('/merchants/me/delivery-zones', {
+        method: 'POST',
+        body: data,
+      });
+    },
+    async update(zoneId: string, data: Partial<{ name: string; fee: number; is_active: boolean }>) {
+      return request<DeliveryZone>(`/merchants/me/delivery-zones/${zoneId}`, {
+        method: 'PATCH',
+        body: data,
+      });
+    },
+  },
   orders: {
     async listCurrentMerchant() {
       return request<Order[]>('/merchants/me/orders');
@@ -284,6 +311,12 @@ export const apiClient = {
       return request<Order>(`/merchants/me/orders/${orderId}`, {
         method: 'PATCH',
         body: { status },
+      });
+    },
+    async updateFulfillmentStatus(orderId: string, fulfillmentStatus: FulfillmentStatus) {
+      return request<Order>(`/merchants/me/orders/${orderId}`, {
+        method: 'PATCH',
+        body: { fulfillment_status: fulfillmentStatus },
       });
     },
   },
@@ -302,6 +335,21 @@ export const apiClient = {
     },
     async simulateTelebirrSuccess(paymentId: string) {
       return request<Payment>(`/payments/telebirr/simulate/${paymentId}`, {
+        method: 'POST',
+      });
+    },
+    async initiatePayment(orderId: string, paymentMethod: 'cash_on_delivery' | 'bank_transfer', customerPhone?: string) {
+      return request<Payment>('/payments/initiate', {
+        method: 'POST',
+        body: {
+          order_id: orderId,
+          payment_method: paymentMethod,
+          customer_phone: customerPhone,
+        },
+      });
+    },
+    async confirmPayment(paymentId: string) {
+      return request<Payment>(`/payments/confirm/${paymentId}`, {
         method: 'POST',
       });
     },

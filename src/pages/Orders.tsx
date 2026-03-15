@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ClipboardList } from 'lucide-react';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { FulfillmentBadge, StatusBadge } from '@/components/shared/status-badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -65,16 +65,17 @@ export default function OrdersPage() {
           </div>
         ) : filteredOrders.length ? (
           <div className="divide-y divide-slate-200">
-            <div className="hidden bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:grid md:grid-cols-[1.1fr_0.9fr_0.6fr_0.6fr]">
+            <div className="hidden bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:grid md:grid-cols-[1.1fr_0.8fr_0.5fr_0.5fr_0.5fr]">
               <span>Order</span>
               <span>Placed</span>
               <span>Amount</span>
-              <span className="text-right">Status</span>
+              <span className="text-right">Payment</span>
+              <span className="text-right">Fulfillment</span>
             </div>
             {filteredOrders.map((order) => (
               <button
                 key={order.id}
-                className="grid w-full gap-4 p-5 text-left transition hover:bg-slate-50 md:grid-cols-[1.1fr_0.9fr_0.6fr_0.6fr] md:items-center"
+                className="grid w-full gap-4 p-5 text-left transition hover:bg-slate-50 md:grid-cols-[1.1fr_0.8fr_0.5fr_0.5fr_0.5fr] md:items-center"
                 onClick={() => navigate(`/dashboard/orders/${order.id}`)}
               >
                 <div>
@@ -85,6 +86,9 @@ export default function OrdersPage() {
                 <p className="font-semibold text-slate-900">{formatCurrency(order.total_amount)}</p>
                 <div className="flex md:justify-end">
                   <StatusBadge status={order.status} />
+                </div>
+                <div className="flex md:justify-end">
+                  <FulfillmentBadge status={order.fulfillment_status} />
                 </div>
               </button>
             ))}

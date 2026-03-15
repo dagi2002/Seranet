@@ -1,4 +1,5 @@
 import type {
+  DeliveryZone,
   Merchant,
   Order,
   OrderItem,
@@ -44,6 +45,11 @@ export function serializeMerchant(merchant: MerchantWithUser) {
     banner_url: merchant.bannerUrl ?? undefined,
     primary_color: merchant.primaryColor,
     is_active: merchant.isActive,
+    is_verified: merchant.isVerified,
+    verified_at: merchant.verifiedAt?.toISOString() ?? undefined,
+    support_phone: merchant.supportPhone ?? undefined,
+    store_policy: merchant.storePolicy ?? undefined,
+    return_policy: merchant.returnPolicy ?? undefined,
   };
 }
 
@@ -84,9 +90,15 @@ export function serializeOrder(order: OrderWithItems) {
     customer_name: order.customerName,
     customer_phone: order.customerPhone,
     customer_address: order.customerAddress ?? undefined,
+    landmark_note: order.landmarkNote ?? undefined,
     items: (order.items ?? []).map(serializeOrderItem),
+    product_total: order.productTotal,
+    delivery_fee: order.deliveryFee,
     total_amount: order.totalAmount,
     status: order.status,
+    fulfillment_status: order.fulfillmentStatus,
+    fulfillment_type: order.fulfillmentType,
+    delivery_zone_id: order.deliveryZoneId ?? undefined,
   };
 }
 
@@ -94,8 +106,24 @@ export function serializePublicOrder(order: Order) {
   return {
     id: order.id,
     order_number: order.orderNumber,
+    product_total: order.productTotal,
+    delivery_fee: order.deliveryFee,
     total_amount: order.totalAmount,
     status: order.status,
+    fulfillment_status: order.fulfillmentStatus,
+    fulfillment_type: order.fulfillmentType,
+  };
+}
+
+export function serializeDeliveryZone(zone: DeliveryZone) {
+  return {
+    id: zone.id,
+    merchant_id: zone.merchantId,
+    name: zone.name,
+    fee: zone.fee,
+    is_active: zone.isActive,
+    created_date: zone.createdAt.toISOString(),
+    updated_date: zone.updatedAt.toISOString(),
   };
 }
 
@@ -112,11 +140,14 @@ export function serializePayment(payment: Payment) {
     created_date: payment.createdAt.toISOString(),
     order_id: payment.orderId,
     merchant_id: payment.merchantId,
+    provider: payment.provider,
     telebirr_txn_id: payment.telebirrTxnId ?? undefined,
     amount: payment.amount,
     status: payment.status,
     customer_phone: payment.customerPhone ?? undefined,
     callback_payload: payment.callbackPayload ?? undefined,
+    bank_transfer_ref: payment.bankTransferRef ?? undefined,
+    confirmed_by_merchant_at: payment.confirmedByMerchantAt?.toISOString() ?? undefined,
   };
 }
 
@@ -124,8 +155,10 @@ export function serializePublicPayment(payment: Payment) {
   return {
     id: payment.id,
     order_id: payment.orderId,
+    provider: payment.provider,
     telebirr_txn_id: payment.telebirrTxnId ?? undefined,
     amount: payment.amount,
     status: payment.status,
+    confirmed_by_merchant_at: payment.confirmedByMerchantAt?.toISOString() ?? undefined,
   };
 }

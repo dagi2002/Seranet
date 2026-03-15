@@ -40,6 +40,7 @@ describe('checkout flow', () => {
       banner_url: 'https://example.com/banner.jpg',
       primary_color: '#0D9488',
       is_active: true,
+      is_verified: false,
     });
     vi.spyOn(apiClient.storefront, 'getProducts').mockResolvedValue([
       {
@@ -57,11 +58,16 @@ describe('checkout flow', () => {
         is_active: true,
       },
     ]);
+    vi.spyOn(apiClient.storefront, 'getDeliveryZones').mockResolvedValue([]);
     vi.spyOn(apiClient.storefront, 'createOrder').mockResolvedValue({
       id: 'order_123',
       order_number: 'ORD-123456',
+      product_total: 4200,
+      delivery_fee: 0,
       total_amount: 4200,
       status: 'pending',
+      fulfillment_status: 'pending',
+      fulfillment_type: 'delivery',
       public_access_token: 'public-access-token',
     });
     vi.spyOn(apiClient.payments, 'initiateTelebirr').mockResolvedValue({
@@ -108,6 +114,7 @@ describe('checkout flow', () => {
       ]),
     );
 
+    vi.spyOn(apiClient.storefront, 'getDeliveryZones').mockResolvedValue([]);
     vi.spyOn(apiClient.storefront, 'getMerchantBySlug').mockResolvedValue({
       id: 'merch_demo',
       created_date: new Date().toISOString(),
@@ -122,6 +129,7 @@ describe('checkout flow', () => {
       banner_url: 'https://example.com/banner.jpg',
       primary_color: '#0D9488',
       is_active: true,
+      is_verified: false,
     });
     vi.spyOn(apiClient.storefront, 'getProducts').mockResolvedValue([
       {
@@ -162,6 +170,7 @@ describe('checkout flow', () => {
   });
 
   it('updates quantity controls and removes items from the checkout cart', async () => {
+    vi.spyOn(apiClient.storefront, 'getDeliveryZones').mockResolvedValue([]);
     vi.spyOn(apiClient.storefront, 'getMerchantBySlug').mockResolvedValue({
       id: 'merch_demo',
       created_date: new Date().toISOString(),
@@ -176,6 +185,7 @@ describe('checkout flow', () => {
       banner_url: 'https://example.com/banner.jpg',
       primary_color: '#0D9488',
       is_active: true,
+      is_verified: false,
     });
     vi.spyOn(apiClient.storefront, 'getProducts').mockResolvedValue([
       {
