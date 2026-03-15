@@ -118,23 +118,24 @@ http://localhost:5173
 ### Mobile setup
 1. Copy `mobile/.env.example` to `mobile/.env`.
 2. Set:
-   - `EXPO_PUBLIC_API_BASE_URL` to a LAN URL reachable by the phone
+   - `EXPO_PUBLIC_API_BASE_URL` to a URL reachable by the test device
    - `EXPO_PUBLIC_DEFAULT_STORE_SLUG` to the store to open by default
 3. Example:
    ```env
-   EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:4000/api
+   EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:4000/api
    EXPO_PUBLIC_DEFAULT_STORE_SLUG=addis-market-studio
    ```
-4. Install mobile dependencies:
+4. For a physical phone instead of the Android emulator, replace `10.0.2.2` with the computer's current LAN IP.
+5. Install mobile dependencies:
    ```bash
    cd mobile
-   npm install
+   npm install --legacy-peer-deps
    ```
-5. Start Expo:
+6. Start Expo:
    ```bash
    npm run start
    ```
-6. Open Expo Go on the phone and connect over the same Wi‑Fi network.
+7. Open Expo Go on the phone and connect over the same Wi‑Fi network, or run `npm run android` to open the app in the Android emulator.
 
 ## Environment Variables
 ### Root web app
@@ -163,6 +164,7 @@ EXPO_PUBLIC_DEFAULT_STORE_SLUG=addis-market-studio
 
 ## Important Local Networking Notes
 - Mobile must not use `localhost` for the API when running on a physical phone.
+- Android emulator should use `10.0.2.2` to reach services running on the host machine.
 - The mobile app must point to the computer's current LAN IP address.
 - If the Wi‑Fi network changes, `mobile/.env` may need to be updated again.
 - The mobile env parser strips trailing slashes and validates the slug format.

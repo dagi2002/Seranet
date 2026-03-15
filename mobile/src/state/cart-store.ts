@@ -6,6 +6,7 @@ import type { CartItem, Product } from '../types/api';
 type CartState = {
   carts: Record<string, CartItem[]>;
   addItem: (slug: string, product: Product, quantity?: number) => void;
+  reconcileCart: (slug: string, products: Product[]) => void;
   updateQuantity: (slug: string, productId: string, quantity: number) => void;
   removeItem: (slug: string, productId: string) => void;
   clearCart: (slug: string) => void;
@@ -46,6 +47,54 @@ export const useCartStore = create<CartState>()(
                   : item,
               )
             : [...currentCart, toCartItem(product, clampQuantity(quantity, product.stock_quantity))];
+
+          return {
+            carts: {
+              ...state.carts,
+              [slug]: nextCart,
+            },
+          };
+        }),
+      reconcileCart: (slug, products) =>
+        set((state) => {
+          const currentCart = state.carts[slug] ?? [];
+          if (currentCart.length === 0) {
+            return state;
+          }
+
+          const productMap = new Map(products.filter((product) => product.is_active).map((product) => [product.id, product]));
+          const nextCart = currentCart.flatMap((item) => {
+            const product = productMap.get(item.id);
+            if (!product) {
+              return [];
+            }
+
+            return [
+              toCartItem(
+                product,
+                clampQuantity(item.quantity, product.stock_quantity),
+              ),
+            ];
+          });
+
+          const unchanged =
+            nextCart.length === currentCart.length &&
+            nextCart.every((item, index) => {
+              const existing = currentCart[index];
+              return (
+                existing &&
+                existing.id === item.id &&
+                existing.name === item.name &&
+                existing.image_url === item.image_url &&
+                existing.price === item.price &&
+                existing.quantity === item.quantity &&
+                existing.stock_quantity === item.stock_quantity
+              );
+            });
+
+          if (unchanged) {
+            return state;
+          }
 
           return {
             carts: {

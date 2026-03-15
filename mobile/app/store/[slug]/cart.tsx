@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { AppScreen } from '../../../src/components/AppScreen';
 import { EmptyState } from '../../../src/components/EmptyState';
 import { PriceText } from '../../../src/components/PriceText';
 import { getCartItems, getCartTotal } from '../../../src/features/cart/selectors';
+import { useProductsQuery } from '../../../src/features/storefront/queries';
 import { useCartStore } from '../../../src/state/cart-store';
 import { colors, spacing } from '../../../src/theme/theme';
 import { Button } from '../../../src/components/ui/Button';
@@ -17,9 +19,19 @@ export default function CartScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug ?? '';
   const items = useCartStore((state) => getCartItems(state.carts, slug));
+  const reconcileCart = useCartStore((state) => state.reconcileCart);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const total = getCartTotal(items);
+  const productsQuery = useProductsQuery(slug);
+
+  useEffect(() => {
+    if (!productsQuery.data) {
+      return;
+    }
+
+    reconcileCart(slug, productsQuery.data);
+  }, [productsQuery.data, reconcileCart, slug]);
 
   return (
     <AppScreen scroll scrollContentStyle={{ paddingBottom: 36 }}>

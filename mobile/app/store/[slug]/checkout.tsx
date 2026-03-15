@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppScreen } from '../../../src/components/AppScreen';
@@ -7,7 +8,7 @@ import { EmptyState } from '../../../src/components/EmptyState';
 import { PriceText } from '../../../src/components/PriceText';
 import { getCartItems, getCartTotal } from '../../../src/features/cart/selectors';
 import { checkoutSchema, type CheckoutFormValues } from '../../../src/features/checkout/schema';
-import { useCreateOrderMutation, useDeliveryZonesQuery } from '../../../src/features/storefront/queries';
+import { useCreateOrderMutation, useDeliveryZonesQuery, useProductsQuery } from '../../../src/features/storefront/queries';
 import { useInitiatePaymentMutation } from '../../../src/features/order-status/queries';
 import { useCartStore } from '../../../src/state/cart-store';
 import { useSessionStore } from '../../../src/state/session-store';
@@ -35,12 +36,22 @@ export default function CheckoutScreen() {
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug ?? '';
   const items = useCartStore((state) => getCartItems(state.carts, slug));
   const clearCart = useCartStore((state) => state.clearCart);
+  const reconcileCart = useCartStore((state) => state.reconcileCart);
   const cartTotal = getCartTotal(items);
   const createOrder = useCreateOrderMutation(slug);
   const initiatePayment = useInitiatePaymentMutation();
   const setLastOrder = useSessionStore((state) => state.setLastOrder);
   const zonesQuery = useDeliveryZonesQuery(slug);
+  const productsQuery = useProductsQuery(slug);
   const deliveryZones = zonesQuery.data ?? [];
+
+  useEffect(() => {
+    if (!productsQuery.data) {
+      return;
+    }
+
+    reconcileCart(slug, productsQuery.data);
+  }, [productsQuery.data, reconcileCart, slug]);
 
   const {
     control,
