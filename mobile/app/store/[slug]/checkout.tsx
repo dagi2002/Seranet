@@ -1,36 +1,52 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppScreen } from '../../../src/components/AppScreen';
 import { EmptyState } from '../../../src/components/EmptyState';
 import { PriceText } from '../../../src/components/PriceText';
 import { getCartItems, getCartTotal } from '../../../src/features/cart/selectors';
 import { checkoutSchema, type CheckoutFormValues } from '../../../src/features/checkout/schema';
-import { useCreateOrderMutation } from '../../../src/features/storefront/queries';
+import { useCreateOrderMutation, useDeliveryZonesQuery } from '../../../src/features/storefront/queries';
 import { useInitiatePaymentMutation } from '../../../src/features/order-status/queries';
 import { useCartStore } from '../../../src/state/cart-store';
 import { useSessionStore } from '../../../src/state/session-store';
-import { colors, layout, spacing } from '../../../src/theme/theme';
+import { colors, layout, radii, spacing } from '../../../src/theme/theme';
 import { Button } from '../../../src/components/ui/Button';
 import { FeatherIcon } from '../../../src/components/ui/Icon';
 import { SectionHeader } from '../../../src/components/ui/SectionHeader';
 import { SurfaceCard } from '../../../src/components/ui/SurfaceCard';
 import { TextField } from '../../../src/components/ui/TextField';
 import { ThemeText } from '../../../src/components/ui/ThemeText';
+import type { PaymentProvider } from '../../../src/types/api';
+
+const PAYMENT_METHODS: Array<{ value: PaymentProvider; label: string; description: string }> = [
+  { value: 'telebirr', label: 'Telebirr', description: 'Pay via Telebirr mobile money' },
+  { value: 'cash_on_delivery', label: 'Cash on Delivery', description: 'Pay when your order arrives' },
+  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Transfer to merchant bank account' },
+];
+
+function paymentMethodLabel(provider: PaymentProvider) {
+  return PAYMENT_METHODS.find((m) => m.value === provider)?.label ?? provider;
+}
 
 export default function CheckoutScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug ?? '';
   const items = useCartStore((state) => getCartItems(state.carts, slug));
   const clearCart = useCartStore((state) => state.clearCart);
-  const total = getCartTotal(items);
+  const cartTotal = getCartTotal(items);
   const createOrder = useCreateOrderMutation(slug);
   const initiatePayment = useInitiatePaymentMutation();
   const setLastOrder = useSessionStore((state) => state.setLastOrder);
+  const zonesQuery = useDeliveryZonesQuery(slug);
+  const deliveryZones = zonesQuery.data ?? [];
+
   const {
     control,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
@@ -38,8 +54,19 @@ export default function CheckoutScreen() {
       customer_name: '',
       customer_phone: '',
       customer_address: '',
+      payment_method: 'telebirr',
+      delivery_zone_id: undefined,
+      landmark_note: '',
+      bank_transfer_ref: '',
     },
   });
+
+  const selectedPaymentMethod = watch('payment_method');
+  const selectedZoneId = watch('delivery_zone_id');
+  const selectedZone = deliveryZones.find((z) => z.id === selectedZoneId);
+  const deliveryFee = selectedZone?.fee ?? 0;
+  const orderTotal = cartTotal + deliveryFee;
+  const isTelebirr = selectedPaymentMethod === 'telebirr';
 
   if (items.length === 0) {
     return (
@@ -70,13 +97,15 @@ export default function CheckoutScreen() {
     clearCart(slug);
 
     let paymentError: string | undefined;
-    try {
-      await initiatePayment.mutateAsync({
-        orderId: order.id,
-        customerPhone: values.customer_phone,
-      });
-    } catch (error) {
-      paymentError = error instanceof Error ? error.message : 'Payment could not be initiated';
+    if (values.payment_method === 'telebirr') {
+      try {
+        await initiatePayment.mutateAsync({
+          orderId: order.id,
+          customerPhone: values.customer_phone,
+        });
+      } catch (error) {
+        paymentError = error instanceof Error ? error.message : 'Payment could not be initiated';
+      }
     }
 
     router.replace({
@@ -105,14 +134,14 @@ export default function CheckoutScreen() {
           showsVerticalScrollIndicator={false}
         >
           <SectionHeader
-            description="Complete the anonymous checkout flow using the existing backend simulation."
+            description="Enter your details, choose a payment method, and place your order."
             eyebrow="Checkout"
-            title="Customer details"
+            title="Complete your order"
           />
 
           <SurfaceCard style={styles.formCard}>
             <View style={styles.stepRow}>
-              {['Customer details', 'Payment review', 'Order confirmation'].map((step, index) => (
+              {['Customer details', 'Payment method', 'Order confirmation'].map((step, index) => (
                 <View key={step} style={styles.stepCard}>
                   <ThemeText variant="eyebrow" color={colors.textSoft}>
                     Step {index + 1}
@@ -128,7 +157,7 @@ export default function CheckoutScreen() {
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextField
                   error={errors.customer_name?.message}
-                  label="Customer name"
+                  label="Name"
                   onBlur={onBlur}
                   onChangeText={onChange}
                   placeholder="Selamawit Tekle"
@@ -143,7 +172,7 @@ export default function CheckoutScreen() {
                 <TextField
                   error={errors.customer_phone?.message}
                   keyboardType="phone-pad"
-                  label="Customer phone"
+                  label="Phone Number"
                   onBlur={onBlur}
                   onChangeText={onChange}
                   placeholder="0911223344"
@@ -157,7 +186,7 @@ export default function CheckoutScreen() {
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextField
                   error={errors.customer_address?.message}
-                  label="Delivery address"
+                  label="Address"
                   multiline
                   onBlur={onBlur}
                   onChangeText={onChange}
@@ -166,15 +195,116 @@ export default function CheckoutScreen() {
                 />
               )}
             />
+            <Controller
+              control={control}
+              name="landmark_note"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextField
+                  label="Landmark / directions (optional)"
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  placeholder="Near Edna Mall, blue gate"
+                  value={value ?? ''}
+                />
+              )}
+            />
 
-            <SurfaceCard accent style={styles.noticeCard}>
-              <View style={styles.noticeRow}>
-                <FeatherIcon color={colors.brandDark} name="shield" size={16} />
-                <ThemeText variant="caption" color={colors.brandDark}>
-                  This staging flow keeps the current anonymous checkout and payment simulation intact.
-                </ThemeText>
+            {/* Delivery zone picker */}
+            {deliveryZones.length > 0 ? (
+              <View style={styles.sectionGap}>
+                <ThemeText variant="bodyStrong">Delivery zone</ThemeText>
+                {deliveryZones.map((zone) => {
+                  const isSelected = selectedZoneId === zone.id;
+                  return (
+                    <Pressable
+                      key={zone.id}
+                      onPress={() => setValue('delivery_zone_id', zone.id)}
+                      style={[styles.radioCard, isSelected && styles.radioCardSelected]}
+                    >
+                      <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                        {isSelected ? <View style={styles.radioCircleInner} /> : null}
+                      </View>
+                      <ThemeText style={styles.radioLabel}>{zone.name}</ThemeText>
+                      <ThemeText variant="bodyStrong" color={colors.textSoft}>
+                        ETB {zone.fee}
+                      </ThemeText>
+                    </Pressable>
+                  );
+                })}
               </View>
-            </SurfaceCard>
+            ) : null}
+
+            {/* Payment method selector */}
+            <View style={styles.sectionGap}>
+              <ThemeText variant="bodyStrong">Payment method</ThemeText>
+              {PAYMENT_METHODS.map((method) => {
+                const isSelected = selectedPaymentMethod === method.value;
+                return (
+                  <Pressable
+                    key={method.value}
+                    onPress={() => setValue('payment_method', method.value)}
+                    style={[styles.radioCard, isSelected && styles.radioCardSelected]}
+                  >
+                    <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                      {isSelected ? <View style={styles.radioCircleInner} /> : null}
+                    </View>
+                    <View style={styles.radioContent}>
+                      <ThemeText variant="bodyStrong">{method.label}</ThemeText>
+                      <ThemeText variant="caption" muted>
+                        {method.description}
+                      </ThemeText>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Payment method info banners */}
+            {selectedPaymentMethod === 'telebirr' ? (
+              <SurfaceCard accent style={styles.noticeCard}>
+                <View style={styles.noticeRow}>
+                  <FeatherIcon color={colors.brandDark} name="shield" size={16} />
+                  <ThemeText variant="caption" color={colors.brandDark}>
+                    Telebirr payment will be simulated through the backend after order placement.
+                  </ThemeText>
+                </View>
+              </SurfaceCard>
+            ) : selectedPaymentMethod === 'cash_on_delivery' ? (
+              <SurfaceCard style={styles.codNotice}>
+                <View style={styles.noticeRow}>
+                  <FeatherIcon color="#92400e" name="info" size={16} />
+                  <ThemeText variant="caption" color="#92400e">
+                    Pay cash when your order is delivered. The merchant will confirm payment upon receipt.
+                  </ThemeText>
+                </View>
+              </SurfaceCard>
+            ) : selectedPaymentMethod === 'bank_transfer' ? (
+              <SurfaceCard style={styles.bankNotice}>
+                <View style={styles.noticeRow}>
+                  <FeatherIcon color="#0369a1" name="info" size={16} />
+                  <ThemeText variant="caption" color="#0369a1">
+                    Transfer the total to the merchant&apos;s bank account. They will confirm once received.
+                  </ThemeText>
+                </View>
+              </SurfaceCard>
+            ) : null}
+
+            {/* Bank transfer reference input */}
+            {selectedPaymentMethod === 'bank_transfer' ? (
+              <Controller
+                control={control}
+                name="bank_transfer_ref"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Transfer reference (optional)"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    placeholder="e.g. FT24031412345"
+                    value={value ?? ''}
+                  />
+                )}
+              />
+            ) : null}
 
             {submissionError ? (
               <ThemeText color={colors.danger}>
@@ -184,15 +314,26 @@ export default function CheckoutScreen() {
 
             <Button
               fullWidth
-              iconLeft={<FeatherIcon color={colors.white} name="arrow-right" size={16} />}
+              iconLeft={
+                <FeatherIcon
+                  color={colors.white}
+                  name={isTelebirr ? 'arrow-right' : 'check'}
+                  size={16}
+                />
+              }
               loading={createOrder.isPending || initiatePayment.isPending}
               onPress={() => void onSubmit()}
               size="lg"
             >
-              {createOrder.isPending || initiatePayment.isPending ? 'Submitting order...' : 'Create order'}
+              {createOrder.isPending || initiatePayment.isPending
+                ? 'Submitting order...'
+                : isTelebirr
+                  ? 'Pay with Telebirr'
+                  : 'Place Order'}
             </Button>
           </SurfaceCard>
 
+          {/* Order summary */}
           <SurfaceCard accent style={styles.summaryCard}>
             <ThemeText variant="eyebrow" color={colors.brandDark}>
               Order summary
@@ -210,9 +351,27 @@ export default function CheckoutScreen() {
                 </View>
               ))}
             </View>
+
+            <View style={styles.infoRow}>
+              <ThemeText muted>Subtotal</ThemeText>
+              <PriceText amount={cartTotal} />
+            </View>
+
+            {selectedZone ? (
+              <View style={styles.infoRow}>
+                <ThemeText muted>Delivery ({selectedZone.name})</ThemeText>
+                <PriceText amount={deliveryFee} />
+              </View>
+            ) : null}
+
+            <View style={styles.infoRow}>
+              <ThemeText muted>Payment method</ThemeText>
+              <ThemeText variant="bodyStrong">{paymentMethodLabel(selectedPaymentMethod)}</ThemeText>
+            </View>
+
             <View style={styles.totalRow}>
-              <ThemeText variant="sectionTitle">Total due</ThemeText>
-              <PriceText amount={total} style={styles.totalValue} variant="price" />
+              <ThemeText variant="sectionTitle">Total</ThemeText>
+              <PriceText amount={orderTotal} style={styles.totalValue} variant="price" />
             </View>
           </SurfaceCard>
         </ScrollView>
@@ -248,8 +407,61 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 4,
   },
+  sectionGap: {
+    gap: 8,
+    paddingTop: 4,
+  },
+  radioCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  radioCardSelected: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioCircleSelected: {
+    borderColor: colors.brand,
+  },
+  radioCircleInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.brand,
+  },
+  radioLabel: {
+    flex: 1,
+  },
+  radioContent: {
+    flex: 1,
+    gap: 2,
+  },
   noticeCard: {
     padding: 14,
+  },
+  codNotice: {
+    padding: 14,
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  bankNotice: {
+    padding: 14,
+    backgroundColor: '#f0f9ff',
+    borderColor: '#bae6fd',
   },
   noticeRow: {
     flexDirection: 'row',
@@ -271,11 +483,19 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+  },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   totalValue: {
     color: colors.brand,

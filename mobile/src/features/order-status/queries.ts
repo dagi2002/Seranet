@@ -24,6 +24,12 @@ export function usePaymentStatusQuery(slug: string, orderId: string, accessToken
     queryFn: () => storefrontApi.getPayment(slug, orderId, accessToken),
     enabled: Boolean(slug && orderId && accessToken),
     retry: false,
-    refetchInterval: 3000,
+    refetchInterval: (query) => {
+      const provider = query.state.data?.provider;
+      if (provider === 'cash_on_delivery' || provider === 'bank_transfer') {
+        return false;
+      }
+      return 3000;
+    },
   });
 }
