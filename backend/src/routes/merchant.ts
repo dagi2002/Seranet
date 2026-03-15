@@ -395,13 +395,18 @@ router.patch('/me/orders/:orderId', asyncHandler(async (req: AuthenticatedReques
       if (status === 'paid') {
         const paidOrder = await transitionOrderToPaid(tx, currentOrder);
         if (currentOrder.payment) {
+          const paymentUpdate: Record<string, unknown> = { status: 'success' };
+          // Only write Telebirr-specific fields for telebirr payments
+          if (currentOrder.payment.provider === 'telebirr') {
+            paymentUpdate.telebirrTxnId = currentOrder.payment.telebirrTxnId ?? `TB-${Date.now()}`;
+            paymentUpdate.callbackPayload = currentOrder.payment.callbackPayload ?? '{"status":"success","provider":"telebirr-simulated"}';
+          } else {
+            // For COD/bank_transfer, record merchant confirmation timestamp
+            paymentUpdate.confirmedByMerchantAt = new Date();
+          }
           await tx.payment.update({
             where: { id: currentOrder.payment.id },
-            data: {
-              status: 'success',
-              telebirrTxnId: currentOrder.payment.telebirrTxnId ?? `TB-${Date.now()}`,
-              callbackPayload: currentOrder.payment.callbackPayload ?? '{"status":"success","provider":"telebirr-simulated"}',
-            },
+            data: paymentUpdate,
           });
         }
         currentOrder = await tx.order.findUniqueOrThrow({

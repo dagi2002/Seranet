@@ -122,6 +122,7 @@ export type PublicPayment = {
   order_id: string;
   provider?: PaymentProvider;
   telebirr_txn_id?: string;
+  bank_transfer_ref?: string;
   amount: number;
   status: PaymentStatus;
   confirmed_by_merchant_at?: string;
