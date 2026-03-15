@@ -1,7 +1,7 @@
-import app from './app';
-import { env } from './config/env';
-import { bootstrapSimulatedPayments } from './lib/simulated-payments';
-import { assertDatabaseSchemaCompatibility } from './lib/startup-checks';
+import app from './app.js';
+import { env } from './config/env.js';
+import { bootstrapSimulatedPayments } from './lib/simulated-payments.js';
+import { assertDatabaseSchemaCompatibility } from './lib/startup-checks.js';
 
 async function start() {
   await assertDatabaseSchemaCompatibility();

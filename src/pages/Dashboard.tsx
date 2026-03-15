@@ -21,7 +21,7 @@ export default function DashboardPage() {
       <EmptyState
         icon={Store}
         title="Create your store"
-        description="The demo session is active, but this merchant does not have a storefront yet."
+        description="This merchant account does not have a storefront yet. Complete onboarding to start selling on Seranet."
         actionLabel="Start onboarding"
         onAction={() => {
           window.location.href = '/onboarding';
@@ -57,7 +57,7 @@ export default function DashboardPage() {
       <section className="grid gap-4 md:grid-cols-3">
         {[
           ['Today’s Sales', formatCurrency(todaysSales), 'vs local demand pulse'],
-          ['Total Orders', String(orders.length), 'across the demo storefront'],
+          ['Total Orders', String(orders.length), 'across your storefront'],
           ['Active Products', String(activeProducts), 'currently visible to shoppers'],
         ].map(([label, value, hint]) => (
           <Card key={label} className="overflow-hidden p-6">
@@ -81,7 +81,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <CardTitle>Quick links</CardTitle>
-                <CardDescription>Common merchant actions with the same visual system as the storefront.</CardDescription>
+                <CardDescription>Common merchant actions for running your store day to day.</CardDescription>
               </div>
               <div className="hidden h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 sm:flex">
                 <Sparkles className="h-5 w-5" />
@@ -103,8 +103,8 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-[1.5rem] bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Store URL</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">seranet.et/{merchant.store_url_slug}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Storefront Path</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">/s/{merchant.store_url_slug}</p>
             </div>
             <div className="rounded-[1.5rem] bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-4">
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-sm leading-6 text-slate-500">No low-stock issues in the current mock catalog.</p>
+                <p className="mt-4 text-sm leading-6 text-slate-500">No low-stock issues need attention right now.</p>
               )}
             </div>
           </CardContent>

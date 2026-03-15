@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
-import { testDatabaseUrl } from './test-db';
+import { testDatabaseUrl } from './test-db.js';
 
 process.env.DATABASE_URL = testDatabaseUrl;
 process.env.JWT_SECRET = 'test-secret';
@@ -8,7 +8,7 @@ process.env.JWT_SECRET = 'test-secret';
 let prisma: PrismaClient;
 
 beforeAll(async () => {
-  ({ prisma } = await import('../prisma'));
+  ({ prisma } = await import('../prisma.js'));
 });
 
 beforeEach(async () => {

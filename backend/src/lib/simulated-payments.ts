@@ -1,6 +1,6 @@
 import type { Order, Payment, PaymentStatus, Prisma } from '@prisma/client';
-import { prisma } from './prisma';
-import { cancelPendingOrder, transitionOrderToPaid } from '../utils/order';
+import { prisma } from './prisma.js';
+import { cancelPendingOrder, transitionOrderToPaid } from '../utils/order.js';
 
 const SIMULATED_PAYMENT_DELAY_MS = 3_000;
 const activeTimers = new Map<string, NodeJS.Timeout>();

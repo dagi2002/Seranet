@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/api/apiClient';
 import { ProductForm } from '@/features/products/components/product-form';
@@ -95,4 +96,104 @@ describe('product form multi-image flow', () => {
       ),
     );
   });
+
+  it('resets to blank values when switching from edit mode to add mode', async () => {
+    renderWithApp(<ProductFormHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Edit' }));
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Existing Product');
+    expect(screen.getByLabelText('Price (ETB)')).toHaveValue(3200);
+    expect(screen.getAllByText(/image/i).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByLabelText('Name')).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Add' }));
+
+    expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(screen.getByLabelText('Description')).toHaveValue('');
+    expect(screen.getByLabelText('Price (ETB)')).toHaveValue(0);
+    expect(screen.getByLabelText('Stock Quantity')).toHaveValue(0);
+    expect(screen.queryByText('Primary image')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create Product' })).toBeInTheDocument();
+  });
+
+  it('reopens add mode as a clean form after creating a product', async () => {
+    const createSpy = vi.spyOn(apiClient.products, 'create').mockResolvedValue({
+      ...baseProduct,
+      id: 'product_created_again',
+      name: 'Fresh Product',
+      image_url: 'https://example.com/upload-1.jpg',
+      image_urls: ['https://example.com/upload-1.jpg'],
+    });
+    vi.spyOn(apiClient.uploads, 'uploadProductImage').mockResolvedValue({ file_url: 'https://example.com/upload-1.jpg' });
+
+    renderWithApp(<ProductFormHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Add' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Fresh Product' } });
+    fireEvent.change(screen.getByLabelText('Price (ETB)'), { target: { value: '150' } });
+    fireEvent.change(screen.getByLabelText('Stock Quantity'), { target: { value: '2' } });
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+    if (!fileInput) {
+      throw new Error('Expected product image file input to exist');
+    }
+    fireEvent.change(fileInput, { target: { files: [new File(['one'], 'one.png', { type: 'image/png' })] } });
+
+    await waitFor(() => expect(screen.getByText('Primary image')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Product' }));
+
+    await waitFor(() =>
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Fresh Product',
+          price: 150,
+          stock_quantity: 2,
+          image_urls: ['https://example.com/upload-1.jpg'],
+        }),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByLabelText('Name')).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Add' }));
+
+    expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(screen.getByLabelText('Description')).toHaveValue('');
+    expect(screen.getByLabelText('Price (ETB)')).toHaveValue(0);
+    expect(screen.getByLabelText('Stock Quantity')).toHaveValue(0);
+    expect(screen.queryByText('Primary image')).not.toBeInTheDocument();
+  });
 });
+
+function ProductFormHarness() {
+  const [open, setOpen] = useState(false);
+  const [product, setProduct] = useState<Product | null>(null);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setProduct(baseProduct);
+          setOpen(true);
+        }}
+      >
+        Open Edit
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setProduct(null);
+          setOpen(true);
+        }}
+      >
+        Open Add
+      </button>
+      <ProductForm product={product} open={open} onOpenChange={setOpen} />
+    </>
+  );
+}

@@ -1,7 +1,7 @@
 import type { ErrorRequestHandler } from 'express';
 import { Prisma } from '@prisma/client';
 import multer from 'multer';
-import { HttpError } from '../lib/errors';
+import { HttpError } from '../lib/errors.js';
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, next) => {
   void next;

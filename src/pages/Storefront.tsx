@@ -147,7 +147,7 @@ export default function StorefrontPage() {
               <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500 sm:grid-cols-3">
                 <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3">
                   <Sparkles className="h-4 w-4 text-brand-600" />
-                  Premium storefront treatment
+                  Brand-led storefront experience
                 </div>
                 <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3">
                   <ShoppingCart className="h-4 w-4 text-brand-600" />
@@ -155,7 +155,7 @@ export default function StorefrontPage() {
                 </div>
                 <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3">
                   <ArrowRight className="h-4 w-4 text-brand-600" />
-                  Ready for fast checkout
+                  Fast checkout flow
                 </div>
               </div>
             </div>

@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { asyncHandler } from '../lib/async-handler';
-import { ConflictError, NotFoundError } from '../lib/errors';
-import { prisma } from '../lib/prisma';
-import { signAuthToken } from '../lib/jwt';
-import { authenticate, type AuthenticatedRequest } from '../middleware/auth';
+import { asyncHandler } from '../lib/async-handler.js';
+import { ConflictError, NotFoundError } from '../lib/errors.js';
+import { prisma } from '../lib/prisma.js';
+import { signAuthToken } from '../lib/jwt.js';
+import { authenticate, type AuthenticatedRequest } from '../middleware/auth.js';
 import {
   optionalPhone,
   optionalTrimmedString,
@@ -13,8 +13,8 @@ import {
   requireObject,
   requireSlug,
   requireTrimmedString,
-} from '../lib/validation';
-import { serializeMerchant, serializeUser } from '../utils/serializers';
+} from '../lib/validation.js';
+import { serializeMerchant, serializeUser } from '../utils/serializers.js';
 
 const router = Router();
 

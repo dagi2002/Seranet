@@ -48,6 +48,7 @@ const demoMerchant: Merchant = {
   description: 'Demo merchant',
   primary_color: '#0D9488',
   is_active: true,
+  is_verified: false,
 };
 
 const freshMerchant: Merchant = {
@@ -62,6 +63,7 @@ const freshMerchant: Merchant = {
   description: 'Fresh merchant',
   primary_color: '#0D9488',
   is_active: true,
+  is_verified: false,
 };
 
 vi.mock('@/api/apiClient', () => ({

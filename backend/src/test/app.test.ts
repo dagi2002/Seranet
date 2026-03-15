@@ -3,10 +3,10 @@ import path from 'node:path';
 import type { Merchant, Order, OrderItem, Payment, Product, User } from '@prisma/client';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
-import app from '../app';
-import { signAuthToken, verifyAuthToken } from '../lib/jwt';
-import { optionalUrlArray } from '../lib/validation';
-import { generateOrderNumber } from '../utils/order';
+import app from '../app.js';
+import { signAuthToken, verifyAuthToken } from '../lib/jwt.js';
+import { optionalUrlArray } from '../lib/validation.js';
+import { generateOrderNumber } from '../utils/order.js';
 import {
   serializeMerchant,
   serializeOrder,
@@ -16,7 +16,7 @@ import {
   serializePublicOrder,
   serializePublicPayment,
   serializeUser,
-} from '../utils/serializers';
+} from '../utils/serializers.js';
 
 const uploadedFiles = new Set<string>();
 

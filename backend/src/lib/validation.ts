@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import { ValidationError } from './errors';
+import { ValidationError } from './errors.js';
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const hexColorPattern = /^#[0-9a-fA-F]{6}$/;

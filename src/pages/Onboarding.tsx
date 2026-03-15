@@ -127,9 +127,9 @@ export default function OnboardingPage() {
           <div className="grid gap-10 p-6 md:grid-cols-[0.95fr_1.05fr] md:p-10">
             <div className="rounded-[2rem] bg-gradient-to-br from-slate-900 via-slate-800 to-brand-700 p-8 text-white">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-200">3-step setup</p>
-              <h1 className="mt-3 text-4xl font-bold leading-tight">Bring your storefront online with the same Base44 flow.</h1>
+              <h1 className="mt-3 text-4xl font-bold leading-tight">Bring your storefront online with Seranet.</h1>
               <p className="mt-4 text-sm leading-7 text-slate-200">
-                Capture your business details, reserve your store URL, and add a brand asset to launch the merchant workspace.
+                Capture your business details, reserve your store URL, and add a brand asset to launch a polished customer storefront.
               </p>
 
               <div className="mt-10 flex gap-3">
@@ -144,15 +144,15 @@ export default function OnboardingPage() {
               <div className="mt-8 space-y-4 text-sm text-slate-200">
                 <div className="rounded-2xl bg-white/10 p-4">
                   <p className="font-semibold text-white">Merchant-first structure</p>
-                  <p className="mt-1">Your storefront slug, theme, catalog, and orders stay cleanly separated for phase 2.</p>
+                  <p className="mt-1">Your storefront, catalog, and orders stay organized from day one as your business grows.</p>
                 </div>
                 <div className="rounded-2xl bg-white/10 p-4">
-                  <p className="font-semibold text-white">Telebirr-ready checkout</p>
-                  <p className="mt-1">The frontend keeps the local payment simulation and checkout rhythm customers expect.</p>
+                  <p className="font-semibold text-white">Telebirr-style checkout</p>
+                  <p className="mt-1">Seranet keeps the checkout experience familiar for Ethiopian shoppers and simple for your team to manage.</p>
                 </div>
                 <div className="rounded-2xl bg-white/10 p-4">
                   <p className="font-semibold text-white">Premium storefront system</p>
-                  <p className="mt-1">The merchant dashboard and customer storefront stay visually aligned from the first launch.</p>
+                  <p className="mt-1">Your merchant workspace and public storefront stay visually aligned from launch onward.</p>
                 </div>
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function OnboardingPage() {
                     <div className="space-y-5">
                       <div>
                         <h2 className="text-2xl font-bold text-slate-900">Business basics</h2>
-                        <p className="mt-2 text-sm text-slate-500">Start with the merchant identity and contact details used across your store.</p>
+                        <p className="mt-2 text-sm text-slate-500">Start with the business identity and contact details customers will trust across your store.</p>
                       </div>
 
                       <Field label="Business name" error={form.formState.errors.business_name?.message}>
@@ -226,11 +226,11 @@ export default function OnboardingPage() {
                     <div className="space-y-5">
                       <div>
                         <h2 className="text-2xl font-bold text-slate-900">Store URL and story</h2>
-                        <p className="mt-2 text-sm text-slate-500">This slug becomes your public storefront link.</p>
+                        <p className="mt-2 text-sm text-slate-500">This slug becomes your public Seranet storefront link.</p>
                       </div>
                       <Field label="Store URL" error={form.formState.errors.store_url_slug?.message}>
                         <div className="flex items-center rounded-xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-brand-500/20">
-                          <span className="border-r border-slate-200 px-3 text-sm text-slate-500">seranet.et/</span>
+                          <span className="border-r border-slate-200 px-3 text-sm text-slate-500">/s/</span>
                           <Input
                             className="border-0 shadow-none focus:ring-0"
                             {...form.register('store_url_slug', {
@@ -249,14 +249,14 @@ export default function OnboardingPage() {
                     <div className="space-y-5">
                       <div>
                         <h2 className="text-2xl font-bold text-slate-900">Brand touch and launch summary</h2>
-                        <p className="mt-2 text-sm text-slate-500">Add a logo now or swap it later in store settings.</p>
+                        <p className="mt-2 text-sm text-slate-500">Add a logo now or refine your brand later in store settings.</p>
                       </div>
 
                       <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
                         <ImagePlus className="h-5 w-5 text-slate-400" />
                         <div>
                           <p className="text-sm font-medium text-slate-700">{uploading ? 'Uploading logo...' : 'Drop a logo or click to upload'}</p>
-                          <p className="text-xs text-slate-500">Stored locally for MVP. Replaceable later.</p>
+                          <p className="text-xs text-slate-500">You can update this anytime from Store Settings.</p>
                         </div>
                         <input
                           className="hidden"
@@ -292,7 +292,7 @@ export default function OnboardingPage() {
                           </div>
                           <div className="flex justify-between gap-4">
                             <span>Store URL</span>
-                            <span className="font-medium text-slate-900">seranet.et/{summary.store_url_slug || 'your-store'}</span>
+                            <span className="font-medium text-slate-900">/s/{summary.store_url_slug || 'your-store'}</span>
                           </div>
                         </div>
                       </Card>

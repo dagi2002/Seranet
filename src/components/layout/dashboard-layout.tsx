@@ -80,7 +80,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       <div className="border-t border-slate-200/80 p-4">
         <div className="mb-4 rounded-[1.5rem] bg-slate-100/90 p-4">
-          <p className="text-sm font-semibold text-slate-900">{user?.email ?? 'merchant@seranet.et'}</p>
+          <p className="text-sm font-semibold text-slate-900">{user?.email ?? 'merchant@example.com'}</p>
           <p className="text-xs text-slate-500">{merchant?.owner_name || user?.full_name || 'Merchant Account'}</p>
         </div>
         <Button

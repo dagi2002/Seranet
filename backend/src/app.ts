@@ -1,13 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { env } from './config/env';
-import authRoutes from './routes/auth';
-import merchantRoutes from './routes/merchant';
-import storefrontRoutes from './routes/storefront';
-import paymentRoutes from './routes/payments';
-import uploadRoutes from './routes/upload';
-import { errorHandler } from './middleware/error-handler';
+import { env } from './config/env.js';
+import { asyncHandler } from './lib/async-handler.js';
+import { prisma } from './lib/prisma.js';
+import authRoutes from './routes/auth.js';
+import merchantRoutes from './routes/merchant.js';
+import storefrontRoutes from './routes/storefront.js';
+import paymentRoutes from './routes/payments.js';
+import uploadRoutes from './routes/upload.js';
+import { errorHandler } from './middleware/error-handler.js';
 
 const app = express();
 app.use(
@@ -26,6 +28,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/uploads', uploadRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/ready', asyncHandler(async (_req, res) => {
+  await prisma.$queryRawUnsafe('SELECT 1');
+  res.json({ status: 'ok' });
+}));
 
 app.use(errorHandler);
 

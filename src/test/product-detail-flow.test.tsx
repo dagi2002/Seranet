@@ -21,6 +21,7 @@ const merchant = {
   banner_url: 'https://example.com/banner.jpg',
   primary_color: '#0D9488',
   is_active: true,
+  is_verified: false,
 } as const;
 
 const products = [

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
@@ -9,37 +9,55 @@ import { z } from 'zod';
 import { apiClient } from '@/api/apiClient';
 import { EmptyState } from '@/components/shared/empty-state';
 import { MerchantThemeStyle } from '@/hooks/use-merchant-theme';
-import { useMerchantBySlug, useStorefrontProducts } from '@/hooks/queries';
+import { useMerchantBySlug, useStorefrontDeliveryZones, useStorefrontProducts } from '@/hooks/queries';
 import { useSlugCart } from '@/hooks/cart';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { formatCurrency } from '@/utils';
+import type { PaymentProvider } from '@/types/seranet';
+import { formatCurrency, paymentProviderLabel } from '@/utils';
 
 const schema = z.object({
   customer_name: z.string().min(2),
   customer_phone: z.string().min(10),
   customer_address: z.string().min(4),
+  landmark_note: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
+
+const PAYMENT_METHODS: { value: PaymentProvider; label: string; description: string }[] = [
+  { value: 'telebirr', label: 'Telebirr', description: 'Pay via Telebirr mobile money' },
+  { value: 'cash_on_delivery', label: 'Cash on Delivery', description: 'Pay when your order arrives' },
+  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Transfer to merchant bank account' },
+];
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { slug = '' } = useParams();
   const { data: merchant, isError: merchantError } = useMerchantBySlug(slug);
   const { data: products, isError: productsError } = useStorefrontProducts(slug);
+  const { data: deliveryZones = [] } = useStorefrontDeliveryZones(slug);
   const cart = useSlugCart(slug);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentProvider>('telebirr');
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('');
+  const [bankTransferRef, setBankTransferRef] = useState('');
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       customer_name: '',
       customer_phone: '',
       customer_address: '',
+      landmark_note: '',
     },
   });
+
+  const selectedZone = deliveryZones.find((z) => z.id === selectedZoneId);
+  const deliveryFee = selectedZone?.fee ?? 0;
+  const orderTotal = cart.totalAmount + deliveryFee;
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -50,13 +68,20 @@ export default function CheckoutPage() {
         customer_name: values.customer_name,
         customer_phone: values.customer_phone,
         customer_address: values.customer_address,
+        landmark_note: values.landmark_note || undefined,
+        payment_method: paymentMethod,
+        delivery_zone_id: selectedZoneId || undefined,
+        bank_transfer_ref: paymentMethod === 'bank_transfer' && bankTransferRef.trim() ? bankTransferRef.trim() : undefined,
         items: cart.items.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
         })),
       });
 
-      await apiClient.payments.initiateTelebirr(order.id, values.customer_phone);
+      // For telebirr, also initiate the simulated payment flow
+      if (paymentMethod === 'telebirr') {
+        await apiClient.payments.initiateTelebirr(order.id, values.customer_phone);
+      }
 
       cart.clearCart();
       return {
@@ -147,14 +172,14 @@ export default function CheckoutPage() {
               <Card className="space-y-5 p-6 sm:p-7">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] store-primary-text">Checkout</p>
-                  <h1 className="mt-2 text-3xl font-extrabold text-slate-900">Customer details</h1>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">This MVP keeps Telebirr-inspired payment feedback while running against the backend API.</p>
+                  <h1 className="mt-2 text-3xl font-extrabold text-slate-900">Complete your order</h1>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">Enter your details, choose a payment method, and place your order.</p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-3">
                   {[
                     ['1', 'Customer details'],
-                    ['2', 'Telebirr simulation'],
+                    ['2', 'Payment method'],
                     ['3', 'Order confirmation'],
                   ].map(([stepNumber, label]) => (
                     <div key={label} className="rounded-[1.5rem] bg-slate-50 px-4 py-3">
@@ -180,17 +205,105 @@ export default function CheckoutPage() {
                     <Textarea id="customer-address" placeholder="Bole, Addis Ababa" {...form.register('customer_address')} />
                     <FieldError message={form.formState.errors.customer_address?.message} />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="landmark-note">Landmark / directions (optional)</Label>
+                    <Input id="landmark-note" placeholder="Near Edna Mall, blue gate" {...form.register('landmark_note')} />
+                  </div>
 
-                  <div className="rounded-[1.5rem] border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
-                    <div className="flex items-start gap-3">
-                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                      <p>Demo notice: this phase simulates Telebirr confirmation through the backend after order placement.</p>
+                  {deliveryZones.length > 0 ? (
+                    <div className="space-y-2">
+                      <Label>Delivery zone</Label>
+                      <div className="space-y-2">
+                        {deliveryZones.map((zone) => (
+                          <label
+                            key={zone.id}
+                            className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 transition ${selectedZoneId === zone.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="delivery_zone"
+                                value={zone.id}
+                                checked={selectedZoneId === zone.id}
+                                onChange={() => setSelectedZoneId(zone.id)}
+                                className="accent-brand-600"
+                              />
+                              <span className="text-sm font-medium text-slate-900">{zone.name}</span>
+                            </div>
+                            <span className="text-sm font-semibold text-slate-700">{zone.fee > 0 ? formatCurrency(zone.fee) : 'Free'}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-2">
+                    <Label>Payment method</Label>
+                    <div className="space-y-2">
+                      {PAYMENT_METHODS.map((method) => (
+                        <label
+                          key={method.value}
+                          className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${paymentMethod === method.value ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                        >
+                          <input
+                            type="radio"
+                            name="payment_method"
+                            value={method.value}
+                            checked={paymentMethod === method.value}
+                            onChange={() => setPaymentMethod(method.value)}
+                            className="mt-0.5 accent-brand-600"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{method.label}</p>
+                            <p className="text-xs text-slate-500">{method.description}</p>
+                          </div>
+                        </label>
+                      ))}
                     </div>
                   </div>
 
+                  {paymentMethod === 'telebirr' ? (
+                    <div className="rounded-[1.5rem] border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                        <p>Telebirr payment will be simulated through the backend after order placement.</p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {paymentMethod === 'cash_on_delivery' ? (
+                    <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                        <p>Pay cash when your order is delivered. The merchant will confirm payment upon receipt.</p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {paymentMethod === 'bank_transfer' ? (
+                    <>
+                      <div className="rounded-[1.5rem] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                        <div className="flex items-start gap-3">
+                          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                          <p>Transfer the total to the merchant's bank account. They will confirm once received.</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bank-transfer-ref">Transfer reference (optional)</Label>
+                        <Input
+                          id="bank-transfer-ref"
+                          placeholder="e.g. FT24031412345"
+                          value={bankTransferRef}
+                          onChange={(e) => setBankTransferRef(e.target.value)}
+                        />
+                        <p className="text-xs text-slate-400">Include your bank transfer reference so the merchant can verify your payment faster.</p>
+                      </div>
+                    </>
+                  ) : null}
+
                   <Button className="w-full" type="submit" size="lg" variant="primary" disabled={mutation.isPending}>
                     {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Pay with Telebirr
+                    {paymentMethod === 'telebirr' ? 'Pay with Telebirr' : 'Place Order'}
                   </Button>
                 </form>
               </Card>
@@ -249,13 +362,19 @@ export default function CheckoutPage() {
                     <span className="text-slate-500">Subtotal</span>
                     <span className="font-medium text-slate-900">{formatCurrency(cart.totalAmount)}</span>
                   </div>
+                  {deliveryFee > 0 ? (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">Delivery ({selectedZone?.name})</span>
+                      <span className="font-medium text-slate-900">{formatCurrency(deliveryFee)}</span>
+                    </div>
+                  ) : null}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Payment method</span>
-                    <span className="font-medium text-slate-900">Telebirr demo</span>
+                    <span className="font-medium text-slate-900">{paymentProviderLabel(paymentMethod)}</span>
                   </div>
                   <div className="flex items-center justify-between rounded-[1.5rem] bg-slate-50 px-4 py-4">
                     <span className="text-sm font-semibold text-slate-900">Total</span>
-                    <span className="text-2xl font-bold store-primary-text">{formatCurrency(cart.totalAmount)}</span>
+                    <span className="text-2xl font-bold store-primary-text">{formatCurrency(orderTotal)}</span>
                   </div>
                 </div>
               </Card>

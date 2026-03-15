@@ -1,8 +1,7 @@
 import fs from 'node:fs';
 import multer from 'multer';
-import path from 'node:path';
 import { nanoid } from 'nanoid';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 const allowedImageTypes: Record<string, string> = {
   'image/gif': '.gif',
@@ -38,5 +37,9 @@ export const imageUpload = multer({
 });
 
 export function toUploadUrl(filename: string) {
+  if (env.uploadsBaseUrl) {
+    return `${env.uploadsBaseUrl}/${filename}`;
+  }
+
   return `/uploads/${filename}`;
 }

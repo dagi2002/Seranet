@@ -21,11 +21,29 @@ enum ProductCategory {
   other
 }
 
+// Order.status tracks payment lifecycle only.
+// "fulfilled" is retained for backward compatibility but delivery
+// progression is tracked exclusively via fulfillmentStatus.
 enum OrderStatus {
   pending
   paid
   cancelled
   fulfilled
+}
+
+enum FulfillmentStatus {
+  pending
+  confirmed
+  preparing
+  out_for_delivery
+  delivered
+}
+
+// Only "delivery" is accepted at order creation for now.
+// "pickup" is scaffolded for future use but not wired into any API flow.
+enum FulfillmentType {
+  delivery
+  pickup
 }
 
 enum PaymentStatus {
@@ -37,6 +55,8 @@ enum PaymentStatus {
 
 enum PaymentProvider {
   telebirr
+  cash_on_delivery
+  bank_transfer
 }
 
 model User {
@@ -51,25 +71,45 @@ model User {
 }
 
 model Merchant {
-  id           String    @id @default(cuid())
-  userId       String    @unique
-  businessName String
-  ownerName    String?
-  phone        String?
-  storeSlug    String    @unique
-  description  String?
-  logoUrl      String?
-  bannerUrl    String?
-  primaryColor String    @default("#0D9488")
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  products     Product[]
-  orders       Order[]
-  payments     Payment[]
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  businessName  String
+  ownerName     String?
+  phone         String?
+  storeSlug     String         @unique
+  description   String?
+  logoUrl       String?
+  bannerUrl     String?
+  primaryColor  String         @default("#0D9488")
+  isActive      Boolean        @default(true)
+  isVerified    Boolean        @default(false)
+  verifiedAt    DateTime?
+  supportPhone  String?
+  storePolicy   String?
+  returnPolicy  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products      Product[]
+  orders        Order[]
+  payments      Payment[]
+  deliveryZones DeliveryZone[]
 
   @@index([storeSlug])
+}
+
+model DeliveryZone {
+  id         String   @id @default(cuid())
+  merchantId String
+  name       String
+  fee        Int
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  orders     Order[]
+
+  @@index([merchantId])
 }
 
 model Product {
@@ -91,21 +131,28 @@ model Product {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  merchantId      String
-  orderNumber     String      @unique
-  publicAccessToken String    @unique
-  customerName    String
-  customerPhone   String
-  customerAddress String?
-  totalAmount     Int
-  status          OrderStatus @default(pending)
-  stockReserved   Boolean     @default(false)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  merchant        Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  items           OrderItem[]
-  payment         Payment?
+  id                String            @id @default(cuid())
+  merchantId        String
+  orderNumber       String            @unique
+  publicAccessToken String            @unique
+  customerName      String
+  customerPhone     String
+  customerAddress   String?
+  landmarkNote      String?
+  productTotal      Int
+  deliveryFee       Int               @default(0)
+  totalAmount       Int
+  status            OrderStatus       @default(pending)
+  fulfillmentStatus FulfillmentStatus @default(pending)
+  fulfillmentType   FulfillmentType   @default(delivery)
+  deliveryZoneId    String?
+  stockReserved     Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  merchant          Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  deliveryZone      DeliveryZone?     @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  items             OrderItem[]
+  payment           Payment?
 
   @@index([merchantId, createdAt])
 }
@@ -125,19 +172,21 @@ model OrderItem {
 }
 
 model Payment {
-  id              String          @id @default(cuid())
-  orderId         String          @unique
-  merchantId      String
-  provider        PaymentProvider @default(telebirr)
-  status          PaymentStatus   @default(initiated)
-  amount          Int
-  customerPhone   String?
-  telebirrTxnId   String?
-  callbackPayload String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  merchant        Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  id                    String          @id @default(cuid())
+  orderId               String          @unique
+  merchantId            String
+  provider              PaymentProvider @default(telebirr)
+  status                PaymentStatus   @default(initiated)
+  amount                Int
+  customerPhone         String?
+  telebirrTxnId         String?
+  callbackPayload       String?
+  bankTransferRef       String?
+  confirmedByMerchantAt DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  order                 Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  merchant              Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
 
   @@index([merchantId])
 }

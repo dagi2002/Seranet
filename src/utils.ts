@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import type { OrderStatus, PaymentStatus, ProductCategory } from '@/types/seranet';
+import type { FulfillmentStatus, OrderStatus, PaymentProvider, PaymentStatus, ProductCategory } from '@/types/seranet';
 
 export const createPageUrl = (pageName: string) => `/${pageName}`;
 
@@ -44,8 +44,27 @@ export const generateOrderNumber = () => `ORD-${Date.now().toString(36).toUpperC
 
 export const clampQuantity = (value: number) => Math.max(1, Math.floor(Number.isFinite(value) ? value : 1));
 
-export const statusLabel = (status: OrderStatus | PaymentStatus) =>
-  status.charAt(0).toUpperCase() + status.slice(1);
+export const statusLabel = (status: OrderStatus | PaymentStatus | FulfillmentStatus) =>
+  status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+const FULFILLMENT_LABELS: Record<FulfillmentStatus, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  preparing: 'Preparing',
+  out_for_delivery: 'Out for Delivery',
+  delivered: 'Delivered',
+};
+
+export const fulfillmentLabel = (status: FulfillmentStatus) => FULFILLMENT_LABELS[status];
+
+const PAYMENT_PROVIDER_LABELS: Record<PaymentProvider, string> = {
+  telebirr: 'Telebirr',
+  cash_on_delivery: 'Cash on Delivery',
+  bank_transfer: 'Bank Transfer',
+};
+
+export const paymentProviderLabel = (provider?: PaymentProvider) =>
+  provider ? PAYMENT_PROVIDER_LABELS[provider] : 'Unknown';
 
 export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

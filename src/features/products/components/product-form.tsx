@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Grip, Loader2, UploadCloud, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -28,6 +28,18 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+function getFormValues(product?: Product | null): FormValues {
+  return {
+    name: product?.name ?? '',
+    description: product?.description ?? '',
+    price: product?.price ?? 0,
+    stock_quantity: product?.stock_quantity ?? 0,
+    image_urls: product?.image_urls ?? [],
+    category: product?.category ?? 'other',
+    is_active: product?.is_active ?? true,
+  };
+}
+
 export function ProductForm({
   product,
   open,
@@ -39,23 +51,16 @@ export function ProductForm({
 }) {
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
-  const defaultValues = useMemo<FormValues>(
-    () => ({
-      name: product?.name ?? '',
-      description: product?.description ?? '',
-      price: product?.price ?? 0,
-      stock_quantity: product?.stock_quantity ?? 0,
-      image_urls: product?.image_urls ?? [],
-      category: product?.category ?? 'other',
-      is_active: product?.is_active ?? true,
-    }),
-    [product],
-  );
-
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    values: defaultValues,
+    defaultValues: getFormValues(product),
   });
+
+  useEffect(() => {
+    if (!open) return;
+
+    form.reset(getFormValues(product));
+  }, [form, open, product]);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {

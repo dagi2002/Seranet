@@ -27,6 +27,7 @@ export const demoMerchant: Merchant = {
     'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1600&q=80',
   primary_color: '#0D9488',
   is_active: true,
+  is_verified: false,
 };
 
 export const demoProducts: Product[] = [
@@ -153,6 +154,10 @@ export const demoOrders: Order[] = [
       },
     ],
     total_amount: 4200,
+    product_total: 4200,
+    delivery_fee: 0,
+    fulfillment_status: 'pending',
+    fulfillment_type: 'delivery',
     status: 'pending',
   },
   {
@@ -179,6 +184,10 @@ export const demoOrders: Order[] = [
       },
     ],
     total_amount: 3160,
+    product_total: 3160,
+    delivery_fee: 0,
+    fulfillment_status: 'confirmed',
+    fulfillment_type: 'delivery',
     status: 'paid',
   },
   {
@@ -199,6 +208,10 @@ export const demoOrders: Order[] = [
       },
     ],
     total_amount: 2600,
+    product_total: 2600,
+    delivery_fee: 0,
+    fulfillment_status: 'delivered',
+    fulfillment_type: 'delivery',
     status: 'fulfilled',
   },
   {
@@ -219,6 +232,10 @@ export const demoOrders: Order[] = [
       },
     ],
     total_amount: 1450,
+    product_total: 1450,
+    delivery_fee: 0,
+    fulfillment_status: 'pending',
+    fulfillment_type: 'delivery',
     status: 'cancelled',
   },
 ];
