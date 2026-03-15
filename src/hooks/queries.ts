@@ -35,6 +35,21 @@ export function useStorefrontProducts(slug: string) {
   });
 }
 
+export function useCurrentMerchantDeliveryZones() {
+  return useQuery({
+    queryKey: ['merchant-delivery-zones'],
+    queryFn: () => apiClient.deliveryZones.listCurrentMerchant(),
+  });
+}
+
+export function useStorefrontDeliveryZones(slug: string) {
+  return useQuery({
+    queryKey: ['storefront-delivery-zones', slug],
+    queryFn: () => apiClient.storefront.getDeliveryZones(slug),
+    enabled: Boolean(slug),
+  });
+}
+
 export function useCurrentMerchantOrders() {
   return useQuery({
     queryKey: ['merchant-orders'],

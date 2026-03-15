@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { OrderStatus, ProductCategory } from '@prisma/client';
+import type { FulfillmentStatus, OrderStatus, ProductCategory } from '@prisma/client';
 import { asyncHandler } from '../lib/async-handler.js';
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js';
 import { prisma } from '../lib/prisma.js';
@@ -21,8 +21,8 @@ import {
   requireSlug,
   requireTrimmedString,
 } from '../lib/validation.js';
-import { serializeMerchant, serializeOrder, serializePayment, serializeProduct } from '../utils/serializers.js';
-import { cancelPendingOrder, transitionOrderToPaid } from '../utils/order.js';
+import { serializeDeliveryZone, serializeMerchant, serializeOrder, serializePayment, serializeProduct } from '../utils/serializers.js';
+import { cancelPendingOrder, transitionOrderToPaid, validateFulfillmentTransition } from '../utils/order.js';
 
 const router = Router();
 const MAX_PRODUCT_IMAGES = 5;
@@ -111,6 +111,9 @@ router.patch('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
       bannerUrl: optionalUrl(payload.banner_url, 'Banner URL'),
       primaryColor: optionalHexColor(payload.primary_color, 'Primary color'),
       isActive: optionalBoolean(payload.is_active, 'Store active flag'),
+      supportPhone: optionalPhone(payload.support_phone, 'Support phone'),
+      storePolicy: optionalTrimmedString(payload.store_policy, 'Store policy', { maxLength: 2000 }),
+      returnPolicy: optionalTrimmedString(payload.return_policy, 'Return policy', { maxLength: 2000 }),
     },
     include: {
       user: {
@@ -121,6 +124,75 @@ router.patch('/me', asyncHandler(async (req: AuthenticatedRequest, res) => {
 
   res.json(serializeMerchant(updated));
 }));
+
+// ──────────────────────────────────────────────
+// Delivery Zones — CRUD (no delete, deactivation only)
+// ──────────────────────────────────────────────
+
+router.get('/me/delivery-zones', asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const merchantId = req.auth?.merchantId;
+  if (!merchantId) {
+    throw new NotFoundError('Merchant not found');
+  }
+
+  const zones = await prisma.deliveryZone.findMany({
+    where: { merchantId },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  res.json(zones.map(serializeDeliveryZone));
+}));
+
+router.post('/me/delivery-zones', asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const merchantId = req.auth?.merchantId;
+  if (!merchantId) {
+    throw new NotFoundError('Merchant not found');
+  }
+
+  const payload = requireObject(req.body, 'Request body');
+  const name = requireTrimmedString(payload.name, 'Zone name', { minLength: 1, maxLength: 120 });
+  const fee = requireInteger(payload.fee, 'Delivery fee', { min: 0 });
+
+  const zone = await prisma.deliveryZone.create({
+    data: {
+      merchantId,
+      name,
+      fee,
+    },
+  });
+
+  res.status(201).json(serializeDeliveryZone(zone));
+}));
+
+router.patch('/me/delivery-zones/:zoneId', asyncHandler(async (req: AuthenticatedRequest, res) => {
+  const merchantId = req.auth?.merchantId;
+  const zoneId = requireIdParam(req, 'zoneId', 'Zone id');
+
+  const zone = await prisma.deliveryZone.findUnique({
+    where: { id: zoneId },
+  });
+
+  if (!merchantId || !zone || zone.merchantId !== merchantId) {
+    throw new NotFoundError('Delivery zone not found');
+  }
+
+  const payload = requireObject(req.body, 'Request body');
+
+  const updated = await prisma.deliveryZone.update({
+    where: { id: zone.id },
+    data: {
+      name: optionalTrimmedString(payload.name, 'Zone name', { maxLength: 120 }),
+      fee: optionalInteger(payload.fee, 'Delivery fee', { min: 0 }),
+      isActive: optionalBoolean(payload.is_active, 'Zone active flag'),
+    },
+  });
+
+  res.json(serializeDeliveryZone(updated));
+}));
+
+// ──────────────────────────────────────────────
+// Products
+// ──────────────────────────────────────────────
 
 router.get('/me/products', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const merchantId = req.auth?.merchantId;
@@ -224,6 +296,10 @@ router.delete('/me/products/:productId', asyncHandler(async (req: AuthenticatedR
   res.json({ success: true });
 }));
 
+// ──────────────────────────────────────────────
+// Orders
+// ──────────────────────────────────────────────
+
 router.get('/me/orders', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const merchantId = req.auth?.merchantId;
   if (!merchantId) {
@@ -275,11 +351,25 @@ router.get('/me/orders/:orderId/payment', asyncHandler(async (req: Authenticated
   res.json(serializePayment(payment));
 }));
 
+// Order PATCH — handles both payment status and fulfillment status as separate concerns.
+// Body can contain:
+//   { status: OrderStatus }             — payment lifecycle transition
+//   { fulfillment_status: FulfillmentStatus } — delivery lifecycle transition
+// Both can be sent in the same request.
 router.patch('/me/orders/:orderId', asyncHandler(async (req: AuthenticatedRequest, res) => {
   const merchantId = req.auth?.merchantId;
   const orderId = requireIdParam(req, 'orderId', 'Order id');
   const body = requireObject(req.body, 'Request body');
-  const status = requireEnum(body.status, 'Status', ['pending', 'paid', 'cancelled', 'fulfilled'] satisfies OrderStatus[]);
+
+  const status = optionalEnum(body.status, 'Status', ['pending', 'paid', 'cancelled', 'fulfilled'] satisfies OrderStatus[]);
+  const fulfillmentStatus = optionalEnum(body.fulfillment_status, 'Fulfillment status', [
+    'pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered',
+  ] satisfies FulfillmentStatus[]);
+
+  if (!status && !fulfillmentStatus) {
+    throw new ValidationError('Either status or fulfillment_status is required');
+  }
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -298,52 +388,68 @@ router.patch('/me/orders/:orderId', asyncHandler(async (req: AuthenticatedReques
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    if (status === 'paid') {
-      const paidOrder = await transitionOrderToPaid(tx, order);
-      if (order.payment) {
-        await tx.payment.update({
-          where: { id: order.payment.id },
-          data: {
-            status: 'success',
-            telebirrTxnId: order.payment.telebirrTxnId ?? `TB-${Date.now()}`,
-            callbackPayload: order.payment.callbackPayload ?? '{"status":"success","provider":"telebirr-simulated"}',
-          },
-        });
-      }
+    let currentOrder = order;
 
-      return tx.order.findUniqueOrThrow({
-        where: { id: paidOrder.id },
-        include: { items: true },
+    // Handle payment status transition
+    if (status) {
+      if (status === 'paid') {
+        const paidOrder = await transitionOrderToPaid(tx, currentOrder);
+        if (currentOrder.payment) {
+          await tx.payment.update({
+            where: { id: currentOrder.payment.id },
+            data: {
+              status: 'success',
+              telebirrTxnId: currentOrder.payment.telebirrTxnId ?? `TB-${Date.now()}`,
+              callbackPayload: currentOrder.payment.callbackPayload ?? '{"status":"success","provider":"telebirr-simulated"}',
+            },
+          });
+        }
+        currentOrder = await tx.order.findUniqueOrThrow({
+          where: { id: paidOrder.id },
+          include: { items: { select: { productId: true, quantity: true } }, payment: true },
+        });
+      } else if (status === 'cancelled' && currentOrder.status === 'pending') {
+        const cancelledOrder = await cancelPendingOrder(tx, currentOrder);
+
+        if (currentOrder.payment && currentOrder.payment.status !== 'success') {
+          await tx.payment.update({
+            where: { id: currentOrder.payment.id },
+            data: {
+              status: 'failed',
+              callbackPayload:
+                currentOrder.payment.callbackPayload ?? '{"status":"failed","reason":"merchant-cancelled"}',
+            },
+          });
+        }
+
+        currentOrder = await tx.order.findUniqueOrThrow({
+          where: { id: cancelledOrder.id },
+          include: { items: { select: { productId: true, quantity: true } }, payment: true },
+        });
+      } else if (status === 'fulfilled') {
+        currentOrder = await tx.order.update({
+          where: { id: currentOrder.id },
+          data: { status: 'fulfilled' },
+          include: { items: { select: { productId: true, quantity: true } }, payment: true },
+        });
+      } else if (status === 'pending' && currentOrder.status !== 'pending') {
+        throw new ValidationError('Cannot revert order to pending');
+      }
+    }
+
+    // Handle fulfillment status transition
+    if (fulfillmentStatus) {
+      validateFulfillmentTransition(currentOrder.fulfillmentStatus, fulfillmentStatus);
+
+      currentOrder = await tx.order.update({
+        where: { id: currentOrder.id },
+        data: { fulfillmentStatus },
+        include: { items: { select: { productId: true, quantity: true } }, payment: true },
       });
     }
 
-    if (status === 'cancelled' && order.status === 'pending') {
-      const cancelledOrder = await cancelPendingOrder(tx, order);
-
-      if (order.payment && order.payment.status !== 'success') {
-        await tx.payment.update({
-          where: { id: order.payment.id },
-          data: {
-            status: 'failed',
-            callbackPayload:
-              order.payment.callbackPayload ?? '{"status":"failed","provider":"telebirr-simulated","reason":"merchant-cancelled"}',
-          },
-        });
-      }
-
-      return tx.order.findUniqueOrThrow({
-        where: { id: cancelledOrder.id },
-        include: { items: true },
-      });
-    }
-
-    if (status === 'pending' && order.status !== 'pending') {
-      throw new ValidationError('Only pending orders can stay pending');
-    }
-
-    return tx.order.update({
-      where: { id: order.id },
-      data: { status },
+    return tx.order.findUniqueOrThrow({
+      where: { id: currentOrder.id },
       include: { items: true },
     });
   });

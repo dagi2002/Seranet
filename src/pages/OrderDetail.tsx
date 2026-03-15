@@ -1,16 +1,32 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, MapPin, Phone, ReceiptText, User } from 'lucide-react';
+import { ArrowLeft, Loader2, MapPin, Navigation, Phone, ReceiptText, Truck, User } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { apiClient } from '@/api/apiClient';
 import { PageHeader } from '@/components/shared/page-header';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { FulfillmentBadge, StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentMerchantOrder, useCurrentMerchantPayment } from '@/hooks/queries';
-import type { OrderStatus } from '@/types/seranet';
-import { formatCurrency, formatDateTime } from '@/utils';
+import type { FulfillmentStatus, OrderStatus } from '@/types/seranet';
+import { formatCurrency, formatDateTime, fulfillmentLabel, paymentProviderLabel } from '@/utils';
+
+const NEXT_FULFILLMENT: Record<FulfillmentStatus, FulfillmentStatus | null> = {
+  pending: 'confirmed',
+  confirmed: 'preparing',
+  preparing: 'out_for_delivery',
+  out_for_delivery: 'delivered',
+  delivered: null,
+};
+
+const FULFILLMENT_ACTION_LABELS: Record<FulfillmentStatus, string> = {
+  pending: 'Confirm Order',
+  confirmed: 'Start Preparing',
+  preparing: 'Mark Out for Delivery',
+  out_for_delivery: 'Mark Delivered',
+  delivered: '',
+};
 
 export default function OrderDetailPage() {
   const queryClient = useQueryClient();
@@ -18,16 +34,38 @@ export default function OrderDetailPage() {
   const { data: order, isLoading } = useCurrentMerchantOrder(orderId);
   const { data: payment, isLoading: paymentLoading } = useCurrentMerchantPayment(orderId);
 
-  const mutation = useMutation({
+  const invalidateOrderQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['merchant-order', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['merchant-orders'] });
+    queryClient.invalidateQueries({ queryKey: ['merchant-payment', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['merchant-products'] });
+  };
+
+  const statusMutation = useMutation({
     mutationFn: (status: OrderStatus) => apiClient.orders.updateStatus(orderId, status),
     onSuccess: () => {
-      toast.success('Order updated');
-      queryClient.invalidateQueries({ queryKey: ['merchant-order', orderId] });
-      queryClient.invalidateQueries({ queryKey: ['merchant-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['merchant-payment', orderId] });
-      queryClient.invalidateQueries({ queryKey: ['merchant-products'] });
+      toast.success('Order status updated');
+      invalidateOrderQueries();
     },
   });
+
+  const fulfillmentMutation = useMutation({
+    mutationFn: (fulfillmentStatus: FulfillmentStatus) => apiClient.orders.updateFulfillmentStatus(orderId, fulfillmentStatus),
+    onSuccess: () => {
+      toast.success('Fulfillment status updated');
+      invalidateOrderQueries();
+    },
+  });
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: (paymentId: string) => apiClient.payments.confirmPayment(paymentId),
+    onSuccess: () => {
+      toast.success('Payment confirmed');
+      invalidateOrderQueries();
+    },
+  });
+
+  const isPending = statusMutation.isPending || fulfillmentMutation.isPending || confirmPaymentMutation.isPending;
 
   if (isLoading) {
     return (
@@ -43,6 +81,9 @@ export default function OrderDetailPage() {
 
   if (!order) return null;
 
+  const nextFulfillment = NEXT_FULFILLMENT[order.fulfillment_status];
+  const canConfirmPayment = payment && payment.provider !== 'telebirr' && payment.status !== 'success' && order.status !== 'cancelled';
+
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-3">
@@ -54,7 +95,16 @@ export default function OrderDetailPage() {
         </Button>
       </div>
 
-      <PageHeader title={order.order_number} description={`Placed ${formatDateTime(order.created_date)}`} actions={<StatusBadge status={order.status} />} />
+      <PageHeader
+        title={order.order_number}
+        description={`Placed ${formatDateTime(order.created_date)}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusBadge status={order.status} />
+            <FulfillmentBadge status={order.fulfillment_status} />
+          </div>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <Card>
@@ -67,6 +117,12 @@ export default function OrderDetailPage() {
               <InfoTile icon={Phone} label="Phone" value={order.customer_phone} />
               <InfoTile icon={MapPin} label="Address" value={order.customer_address || 'Not provided'} />
             </div>
+            {order.landmark_note ? (
+              <div className="flex items-start gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <Navigation className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{order.landmark_note}</span>
+              </div>
+            ) : null}
             <div className="overflow-hidden rounded-2xl border border-slate-200">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50 text-left text-slate-500">
@@ -103,14 +159,28 @@ export default function OrderDetailPage() {
                 <span className="font-medium text-slate-900">{order.id}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Status</span>
+                <span className="text-slate-500">Payment status</span>
                 <StatusBadge status={order.status} />
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Fulfillment</span>
+                <FulfillmentBadge status={order.fulfillment_status} />
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Items</span>
                 <span className="font-medium text-slate-900">{order.items.length}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-slate-500">Subtotal</span>
+                <span className="font-medium text-slate-900">{formatCurrency(order.product_total)}</span>
+              </div>
+              {order.delivery_fee > 0 ? (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Delivery fee</span>
+                  <span className="font-medium text-slate-900">{formatCurrency(order.delivery_fee)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between border-t border-slate-200 pt-2">
                 <span className="text-slate-500">Total</span>
                 <span className="font-semibold text-slate-900">{formatCurrency(order.total_amount)}</span>
               </div>
@@ -125,6 +195,10 @@ export default function OrderDetailPage() {
               {paymentLoading ? <Skeleton className="h-20 w-full" /> : payment ? (
                 <>
                   <div className="flex justify-between">
+                    <span className="text-slate-500">Method</span>
+                    <span className="font-medium text-slate-900">{paymentProviderLabel(payment.provider)}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-slate-500">Status</span>
                     <StatusBadge status={payment.status} />
                   </div>
@@ -136,10 +210,35 @@ export default function OrderDetailPage() {
                     <span className="text-slate-500">Customer Phone</span>
                     <span className="text-slate-900">{payment.customer_phone || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Payment ref</span>
-                    <span className="text-slate-900">{payment.telebirr_txn_id || 'Pending callback'}</span>
-                  </div>
+                  {payment.provider === 'telebirr' ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Telebirr ref</span>
+                      <span className="text-slate-900">{payment.telebirr_txn_id || 'Pending callback'}</span>
+                    </div>
+                  ) : null}
+                  {payment.provider === 'bank_transfer' && payment.bank_transfer_ref ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Transfer ref</span>
+                      <span className="font-mono text-slate-900">{payment.bank_transfer_ref}</span>
+                    </div>
+                  ) : null}
+                  {payment.confirmed_by_merchant_at ? (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Confirmed at</span>
+                      <span className="text-slate-900">{formatDateTime(payment.confirmed_by_merchant_at)}</span>
+                    </div>
+                  ) : null}
+                  {canConfirmPayment ? (
+                    <Button
+                      variant="primary"
+                      className="mt-2 w-full"
+                      onClick={() => confirmPaymentMutation.mutate(payment.id)}
+                      disabled={isPending}
+                    >
+                      {confirmPaymentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Confirm Payment Received
+                    </Button>
+                  ) : null}
                 </>
               ) : <p className="text-slate-500">No payment record found.</p>}
             </CardContent>
@@ -156,34 +255,55 @@ export default function OrderDetailPage() {
                     <ReceiptText className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Fulfillment controls</p>
-                    <p className="text-sm text-slate-500">Keep the order moving from payment to fulfillment with clear status controls.</p>
+                    <p className="text-sm font-semibold text-slate-900">Order controls</p>
+                    <p className="text-sm text-slate-500">Payment lifecycle and fulfillment are separate concerns.</p>
                   </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-3">
-              {order.status === 'pending' ? (
-                <>
-                  <Button variant="destructive" onClick={() => mutation.mutate('cancelled')} disabled={mutation.isPending}>
-                    {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Cancel Order
+                {order.status === 'pending' ? (
+                  <>
+                    <Button variant="destructive" onClick={() => statusMutation.mutate('cancelled')} disabled={isPending}>
+                      {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Cancel Order
+                    </Button>
+                    <Button variant="primary" onClick={() => statusMutation.mutate('paid')} disabled={isPending}>
+                      {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Mark as Paid
+                    </Button>
+                  </>
+                ) : null}
+                {order.status === 'paid' ? (
+                  <Button variant="outline" onClick={() => statusMutation.mutate('fulfilled')} disabled={isPending}>
+                    {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Mark as Fulfilled
                   </Button>
-                  <Button variant="primary" onClick={() => mutation.mutate('paid')} disabled={mutation.isPending}>
-                    {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Mark as Paid
-                  </Button>
-                </>
-              ) : null}
-              {order.status === 'paid' ? (
-                <Button variant="primary" onClick={() => mutation.mutate('fulfilled')} disabled={mutation.isPending}>
-                  {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Mark as Fulfilled
-                </Button>
-              ) : null}
-              {order.status === 'fulfilled' || order.status === 'cancelled' ? (
-                <p className="text-sm text-slate-500">This order has reached a final state.</p>
-              ) : null}
+                ) : null}
               </div>
+
+              {order.status !== 'cancelled' && nextFulfillment ? (
+                <div className="border-t border-slate-200 pt-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
+                    <Truck className="h-4 w-4" />
+                    <span>Delivery: {fulfillmentLabel(order.fulfillment_status)}</span>
+                  </div>
+                  <Button
+                    variant="primary"
+                    onClick={() => fulfillmentMutation.mutate(nextFulfillment)}
+                    disabled={isPending}
+                  >
+                    {fulfillmentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {FULFILLMENT_ACTION_LABELS[order.fulfillment_status]}
+                  </Button>
+                </div>
+              ) : null}
+
+              {order.status === 'cancelled' ? (
+                <p className="text-sm text-slate-500">This order was cancelled.</p>
+              ) : null}
+              {order.fulfillment_status === 'delivered' ? (
+                <p className="text-sm text-slate-500">This order has been delivered.</p>
+              ) : null}
             </CardContent>
           </Card>
         </div>

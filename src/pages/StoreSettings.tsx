@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Loader2, Palette, UploadCloud } from 'lucide-react';
+import { ExternalLink, Loader2, MapPin, Palette, Plus, ShieldCheck, UploadCloud } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -15,10 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { MerchantThemeStyle } from '@/hooks/use-merchant-theme';
-import { useCurrentMerchant } from '@/hooks/queries';
-import { MERCHANT_COLOR_SWATCHES, validateImageFile } from '@/utils';
+import { useCurrentMerchant, useCurrentMerchantDeliveryZones } from '@/hooks/queries';
+import { formatCurrency, MERCHANT_COLOR_SWATCHES, validateImageFile } from '@/utils';
 import { Link } from 'react-router-dom';
-import type { Merchant } from '@/types/seranet';
+import type { DeliveryZone, Merchant } from '@/types/seranet';
 
 const schema = z.object({
   business_name: z.string().min(2),
@@ -30,6 +30,9 @@ const schema = z.object({
   banner_url: z.string().optional(),
   primary_color: z.string().min(4),
   is_active: z.boolean(),
+  support_phone: z.string().optional(),
+  store_policy: z.string().optional(),
+  return_policy: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -45,6 +48,9 @@ function toFormValues(merchant: Merchant): FormValues {
     banner_url: merchant.banner_url || '',
     primary_color: merchant.primary_color,
     is_active: merchant.is_active,
+    support_phone: merchant.support_phone || '',
+    store_policy: merchant.store_policy || '',
+    return_policy: merchant.return_policy || '',
   };
 }
 
@@ -64,6 +70,9 @@ export default function StoreSettingsPage() {
       banner_url: '',
       primary_color: '#0D9488',
       is_active: true,
+      support_phone: '',
+      store_policy: '',
+      return_policy: '',
     },
   });
 
@@ -156,6 +165,30 @@ export default function StoreSettingsPage() {
               <Textarea {...form.register('description')} />
             </Field>
           </div>
+
+          <div className="space-y-4 border-t border-slate-200 pt-5">
+            <h2 className="text-lg font-semibold text-slate-900">Trust & policies</h2>
+            <p className="text-sm text-slate-500">Help customers feel confident buying from your store.</p>
+            <Field label="Support Phone">
+              <Input placeholder="0911223344" {...form.register('support_phone')} />
+            </Field>
+            <Field label="Store Policy">
+              <Textarea placeholder="Describe your shipping, availability, or general store policies." {...form.register('store_policy')} />
+            </Field>
+            <Field label="Return Policy">
+              <Textarea placeholder="Describe your return or refund policy." {...form.register('return_policy')} />
+            </Field>
+            {merchant.is_verified ? (
+              <div className="flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-800">
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span>Verified merchant</span>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                Merchant verification is managed by the platform.
+              </div>
+            )}
+          </div>
         </Card>
 
         <div className="space-y-6">
@@ -230,7 +263,158 @@ export default function StoreSettingsPage() {
           </Card>
         </div>
       </form>
+
+      <DeliveryZonesSection />
     </div>
+  );
+}
+
+function DeliveryZonesSection() {
+  const queryClient = useQueryClient();
+  const { data: zones = [], isLoading } = useCurrentMerchantDeliveryZones();
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string; fee: number }) => apiClient.deliveryZones.create(data),
+    onSuccess: () => {
+      toast.success('Delivery zone created');
+      queryClient.invalidateQueries({ queryKey: ['merchant-delivery-zones'] });
+      setAdding(false);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Could not create zone'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; fee?: number; is_active?: boolean }) =>
+      apiClient.deliveryZones.update(id, data),
+    onSuccess: () => {
+      toast.success('Delivery zone updated');
+      queryClient.invalidateQueries({ queryKey: ['merchant-delivery-zones'] });
+      setEditingId(null);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Could not update zone'),
+  });
+
+  return (
+    <Card className="space-y-5 p-6 sm:p-7">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-slate-500" />
+            <h2 className="text-lg font-semibold text-slate-900">Delivery Zones</h2>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">Define areas you deliver to and their fees. Customers choose a zone at checkout.</p>
+        </div>
+        {!adding && (
+          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+            <Plus className="h-4 w-4" />
+            Add Zone
+          </Button>
+        )}
+      </div>
+
+      {adding && (
+        <ZoneForm
+          onSubmit={(data) => createMutation.mutate(data)}
+          onCancel={() => setAdding(false)}
+          isPending={createMutation.isPending}
+        />
+      )}
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Loading zones...</p>
+      ) : zones.length === 0 && !adding ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center">
+          <MapPin className="mx-auto h-8 w-8 text-slate-300" />
+          <p className="mt-2 text-sm font-medium text-slate-500">No delivery zones yet</p>
+          <p className="text-xs text-slate-400">Add zones so customers can select their delivery area at checkout.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {zones.map((zone) =>
+            editingId === zone.id ? (
+              <ZoneForm
+                key={zone.id}
+                initial={zone}
+                onSubmit={(data) => updateMutation.mutate({ id: zone.id, ...data })}
+                onCancel={() => setEditingId(null)}
+                isPending={updateMutation.isPending}
+              />
+            ) : (
+              <div
+                key={zone.id}
+                className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${zone.is_active ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`}
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {zone.name}
+                    {!zone.is_active && <span className="ml-2 text-xs text-slate-400">(inactive)</span>}
+                  </p>
+                  <p className="text-xs text-slate-500">{zone.fee > 0 ? formatCurrency(zone.fee) : 'Free delivery'}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={zone.is_active}
+                    onCheckedChange={(checked) => updateMutation.mutate({ id: zone.id, is_active: checked })}
+                  />
+                  <Button variant="ghost" size="sm" onClick={() => setEditingId(zone.id)}>
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            ),
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function ZoneForm({
+  initial,
+  onSubmit,
+  onCancel,
+  isPending,
+}: {
+  initial?: DeliveryZone;
+  onSubmit: (data: { name: string; fee: number }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState(initial?.name ?? '');
+  const [fee, setFee] = useState(initial?.fee?.toString() ?? '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedFee = Math.max(0, Math.round(Number(fee) || 0));
+    if (!name.trim()) {
+      toast.error('Zone name is required');
+      return;
+    }
+    onSubmit({ name: name.trim(), fee: parsedFee });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4">
+      <div className="flex-1 space-y-1">
+        <Label className="text-xs">Zone name</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Bole, Kirkos" />
+      </div>
+      <div className="w-32 space-y-1">
+        <Label className="text-xs">Fee (ETB)</Label>
+        <Input type="number" min="0" value={fee} onChange={(e) => setFee(e.target.value)} placeholder="0" />
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary" size="sm" disabled={isPending}>
+          {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          {initial ? 'Save' : 'Add'}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 

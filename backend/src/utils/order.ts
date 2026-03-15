@@ -1,6 +1,31 @@
-import type { Order, Prisma, Product } from '@prisma/client';
+import type { FulfillmentStatus, Order, Prisma, Product } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { ValidationError } from '../lib/errors.js';
+
+// Fulfillment state machine — delivery progression only.
+// Order.status (payment lifecycle) is NOT touched here.
+const FULFILLMENT_TRANSITIONS: Record<FulfillmentStatus, FulfillmentStatus | null> = {
+  pending: 'confirmed',
+  confirmed: 'preparing',
+  preparing: 'out_for_delivery',
+  out_for_delivery: 'delivered',
+  delivered: null,
+};
+
+export function nextFulfillmentStatus(current: FulfillmentStatus): FulfillmentStatus {
+  const next = FULFILLMENT_TRANSITIONS[current];
+  if (!next) {
+    throw new ValidationError(`Cannot advance fulfillment beyond "${current}"`);
+  }
+  return next;
+}
+
+export function validateFulfillmentTransition(from: FulfillmentStatus, to: FulfillmentStatus): void {
+  const next = FULFILLMENT_TRANSITIONS[from];
+  if (next !== to) {
+    throw new ValidationError(`Invalid fulfillment transition: "${from}" → "${to}". Expected "${next ?? '(terminal)'}"`);
+  }
+}
 
 export function generateOrderNumber() {
   const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();

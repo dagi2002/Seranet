@@ -40,6 +40,7 @@ const merchant: Merchant = {
   description: 'Demo merchant',
   primary_color: '#0D9488',
   is_active: true,
+  is_verified: false,
 };
 
 const user: AuthUser = {

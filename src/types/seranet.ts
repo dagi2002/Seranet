@@ -12,6 +12,11 @@ export type Merchant = {
   banner_url?: string;
   primary_color: string;
   is_active: boolean;
+  is_verified: boolean;
+  verified_at?: string;
+  support_phone?: string;
+  store_policy?: string;
+  return_policy?: string;
 };
 
 export type ProductCategory =
@@ -46,6 +51,9 @@ export type OrderItem = {
 };
 
 export type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'fulfilled';
+export type FulfillmentStatus = 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered';
+export type FulfillmentType = 'delivery' | 'pickup';
+export type PaymentProvider = 'telebirr' | 'cash_on_delivery' | 'bank_transfer';
 
 export type Order = {
   id: string;
@@ -56,16 +64,36 @@ export type Order = {
   customer_name: string;
   customer_phone: string;
   customer_address?: string;
+  landmark_note?: string;
   items: OrderItem[];
+  product_total: number;
+  delivery_fee: number;
   total_amount: number;
   status: OrderStatus;
+  fulfillment_status: FulfillmentStatus;
+  fulfillment_type: FulfillmentType;
+  delivery_zone_id?: string;
 };
 
 export type PublicOrder = {
   id: string;
   order_number: string;
+  product_total: number;
+  delivery_fee: number;
   total_amount: number;
   status: OrderStatus;
+  fulfillment_status: FulfillmentStatus;
+  fulfillment_type: FulfillmentType;
+};
+
+export type DeliveryZone = {
+  id: string;
+  merchant_id: string;
+  name: string;
+  fee: number;
+  is_active: boolean;
+  created_date: string;
+  updated_date: string;
 };
 
 export type CheckoutOrder = PublicOrder & {
@@ -79,19 +107,24 @@ export type Payment = {
   created_date: string;
   order_id: string;
   merchant_id?: string;
+  provider?: PaymentProvider;
   telebirr_txn_id?: string;
   amount: number;
   status: PaymentStatus;
   customer_phone?: string;
   callback_payload?: string;
+  bank_transfer_ref?: string;
+  confirmed_by_merchant_at?: string;
 };
 
 export type PublicPayment = {
   id: string;
   order_id: string;
+  provider?: PaymentProvider;
   telebirr_txn_id?: string;
   amount: number;
   status: PaymentStatus;
+  confirmed_by_merchant_at?: string;
 };
 
 export type AuthUser = {
