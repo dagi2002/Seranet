@@ -1,15 +1,18 @@
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
+  Banknote,
   CheckCircle2,
   CreditCard,
   LayoutDashboard,
+  MapPin,
   MoveRight,
   Package2,
   Palette,
   ShieldCheck,
   ShoppingCart,
   Store,
+  Truck,
 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -23,21 +26,28 @@ import { useAuth } from '@/hooks/auth';
 
 const features = [
   { icon: Store, title: 'Launch fast', description: 'Set up your storefront, products, and merchant profile in minutes.' },
-  { icon: CreditCard, title: 'Telebirr-style checkout', description: 'Offer a payment experience that feels familiar to Ethiopian shoppers.' },
+  { icon: CreditCard, title: 'Flexible payments', description: 'Accept Telebirr, cash on delivery, and bank transfers — the payment methods Ethiopian shoppers trust.' },
+  { icon: Truck, title: 'Delivery zones', description: 'Define delivery areas with custom fees so customers see accurate costs at checkout.' },
+  { icon: Package2, title: 'Order fulfillment', description: 'Track every order from confirmed to preparing, out for delivery, and delivered.' },
   { icon: Palette, title: 'Storefront branding', description: 'Primary color, banners, and imagery shape each merchant storefront.' },
   { icon: ShoppingCart, title: 'Cart persistence', description: 'Customers can browse, return later, and keep their cart by store.' },
-  { icon: Package2, title: 'Product control', description: 'Manage stock, visibility, categories, and media from one merchant workspace.' },
-  { icon: ShieldCheck, title: 'Operational visibility', description: 'Track orders, payments, and store performance from a reliable daily control panel.' },
+  { icon: Banknote, title: 'Product control', description: 'Manage stock, visibility, categories, and media from one merchant workspace.' },
+  { icon: ShieldCheck, title: 'Merchant trust', description: 'Verified badges, business registration, and Addis Ababa address details build customer confidence.' },
 ];
 
 const stats = [
   { label: 'Merchants onboarded', value: '180+' },
   { label: 'Avg. setup time', value: '9 min' },
-  { label: 'Checkout experience', value: 'Localized' },
-  { label: 'Store branding', value: 'Custom' },
+  { label: 'Payment methods', value: '3' },
+  { label: 'Delivery tracking', value: 'Built-in' },
 ];
 
-const heroHighlights = ['Telebirr-style checkout', 'Merchant dashboard + storefront', 'Built for Ethiopian SMB operations'];
+const heroHighlights = [
+  'Telebirr, COD & bank transfer',
+  'Delivery zones & fulfillment tracking',
+  'Merchant dashboard + storefront',
+  'Built for Ethiopian SMB operations',
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -194,7 +204,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="mt-4 rounded-2xl bg-white/10 p-4">
-                  <p className="text-sm font-medium">Telebirr-style payment flow</p>
+                  <p className="text-sm font-medium">Telebirr · COD · Bank transfer</p>
                   <div className="mt-3 h-2 rounded-full bg-white/10">
                     <div className="h-2 w-2/3 rounded-full bg-emerald-400" />
                   </div>
@@ -263,16 +273,16 @@ export default function LandingPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-300">Why Seranet</p>
               <h3 className="mt-3 text-3xl font-bold">Merchants need software that feels local, not generic.</h3>
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                Seranet keeps the storefront, checkout flow, and merchant operations rooted in Ethiopian business context, with
-                Telebirr familiarity and practical day-to-day workflows.
+                Seranet keeps the storefront, checkout flow, and merchant operations rooted in Ethiopian business context — from
+                Telebirr and COD payments to delivery zones and order fulfillment tracking.
               </p>
             </Card>
             <div className="grid gap-6 sm:grid-cols-2">
               {[
-                ['Merchant-ready operations', 'Orders, catalog updates, branding controls, and storefront visibility live in one streamlined workspace.'],
-                ['Unified commerce flow', 'Storefront browsing, cart activity, checkout, and merchant actions stay aligned across the product.'],
-                ['Responsive storefronts', 'Mobile-first browsing, adaptive product grids, and quick cart access keep shopping easy on every screen.'],
-                ['Brand-forward presentation', 'Store colors, banners, and product imagery help each business look established from day one.'],
+                ['Flexible payment options', 'Telebirr, cash on delivery, and bank transfers let customers pay the way they prefer.'],
+                ['Delivery zone management', 'Set delivery areas with custom fees so customers see accurate shipping at checkout.'],
+                ['Order fulfillment tracking', 'Follow every order from confirmed through preparing, out for delivery, and delivered.'],
+                ['Merchant trust & branding', 'Verified badges, business details, and branded storefronts help each merchant look established.'],
               ].map(([title, description]) => (
                 <Card key={title} className="p-6 transition-transform duration-300 hover:-translate-y-1">
                   <h4 className="font-semibold text-slate-900">{title}</h4>
